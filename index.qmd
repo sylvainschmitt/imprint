@@ -1,0 +1,149 @@
+---
+title: "IMPRINT"
+author: "Sylvain Schmitt, Erwan Hingant, Jonathan Lenoir"
+date: last-modified
+format: 
+  html:
+    embed-resources: true
+    toc: true
+---
+
+```{r set}
+#| message: false
+# devtools::install_github("sylvainschmitt/miroclimr")
+library(tidyverse)
+library(dataverse)
+library(microclimr)
+```
+
+# Data
+
+We downloaded back the data from the IMPRINT project (ref) using the INDORES dataverse and the R dataverse package.
+Additionally macroclimatic data were retrieved from ERA5-Land (ref) using the Google Earth Engine (get_era.py script).
+
+```{r dataverse}
+#| eval: false
+plots <- list(
+  Aigoual = "10.48579/PRO/RSBT3C/VDNSLZ",
+  Blois = "10.48579/PRO/RSBT3C/37MKWL",
+  Mormal = "10.48579/PRO/RSBT3C/IJAKFT"
+) %>% lapply(get_dataframe_by_doi, server = "data.indores.fr") %>% 
+  bind_rows(.id = "site")
+write_tsv(plots, "data/plots.tsv")
+plots %>% 
+  group_by(site) %>% 
+  summarise(lon = mean(longwgs84), lat = mean(latwgs84)) %>% 
+  write_tsv("data/coords.tsv")
+temperatures <- list(
+  Aigoual = "10.48579/PRO/ZQBQUW/MK2F35",
+  Blois = "10.48579/PRO/ZQBQUW/ZL0LOC",
+  Mormal = "10.48579/PRO/ZQBQUW/GBVNRR"
+) %>% lapply(get_dataframe_by_doi, server = "data.indores.fr") %>% 
+  bind_rows(.id = "site")
+write_tsv(temperatures, "data/hobo.tsv")
+lidar <- list(
+  Aigoual = "10.48579/PRO/XH62TC/P4F7FP",
+  Blois = "10.48579/PRO/XH62TC/OI6WQU",
+  Mormal = "10.48579/PRO/XH62TC/5RXUGU"
+) %>% lapply(get_dataframe_by_doi, server = "data.indores.fr") %>% 
+  bind_rows(.id = "site")
+write_tsv(lidar, "data/lidar.tsv")
+era <- read_tsv("data/era.tsv") %>% 
+  mutate(site = recode(dim_0, "0" = "Aigoual", "1" = "Blois", "2" = "Mormal")) %>% 
+  mutate(datetime = as_datetime(time)) %>% 
+  rename(era = tas) %>% 
+  select(site, datetime, era)
+lidar_sub <- lidar %>% 
+  filter(buffer == 5) %>% 
+  rename(plot = idplot) %>% 
+  select(site, plot, pai)
+data <- temperatures %>% 
+  mutate(datetime = as_datetime(datetime)) %>% 
+  rename(hobo = t_hobo, plot = id_plot, sensor = id_sensor,
+         position = position_sensor) %>% 
+  mutate(position = recode(position, "a" = "air", "s" = "soil")) %>% 
+  select(site, plot, sensor, position, datetime, hobo) %>% 
+  left_join(era) %>% 
+  left_join(lidar_sub)
+write_tsv(data, "data/data.tsv")
+```
+
+## Decomposition
+
+We decomposed all the temperature series for ERA5-Land and HOBOs in May to September for each plot and sensor on 5 days window sliding of 3 days using a single call to `microclimr::fft_roll` (ca. 1 minute):
+
+```{r decomposition}
+#| eval: false
+data <- read_tsv("data/data.tsv")
+fc <- data %>%
+  filter(month(datetime) %in% 5:9) %>% 
+  gather(source, temperature,
+         -site, -plot, -sensor, -position, -datetime, -pai) %>% 
+  group_by(source, site, plot, sensor, position, pai) %>%
+  do(fft = fft_roll(
+    data = .,
+    t = 5*24,
+    index_col = "datetime",
+    temperature_col = "temperature",
+    window = "5 days",
+    step = "3 days"
+  )) %>%
+  unnest(fft)
+write_tsv(fc, "data/decomposition.tsv")
+```
+
+## Buffer
+
+We can compute back the amplitude buffer at a period of 24h.
+
+```{r buffer}
+#| message: false
+read_tsv("data/decomposition.tsv") %>% 
+  filter(period == 24) %>% 
+  select(source, site, plot, sensor, position, pai, power, datetime) %>% 
+  pivot_wider(names_from = source, values_from = power) %>% 
+  mutate(ratio = hobo/era) %>% 
+  ggplot(aes(plot, ratio, fill = position, col = position)) +
+  geom_violin() +
+  facet_wrap(~ site, nrow = 3, scales = "free_x") +
+  theme_bw() +
+  scale_fill_discrete(guide = "none") +
+  scale_color_discrete(guide = "none") +
+  geom_hline(yintercept = 1) +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  ylab("Amplitude ratio for the period 24")
+```
+
+> Weirdly most soil sensors failed, is there issue of missing data?
+
+## Vegetation
+
+Than we can easily find back the relation with plant area index for Blois and Mormal:
+
+```{r pai}
+#| message: false
+#| warning: false
+read_tsv("data/decomposition.tsv") %>% 
+  filter(period == 24) %>% 
+  select(source, site, plot, sensor, position, pai, power, datetime) %>% 
+  pivot_wider(names_from = source, values_from = power) %>% 
+  mutate(ratio = hobo/era) %>% 
+  group_by(site, plot, sensor, position, pai) %>% 
+  summarise(ratio = mean(ratio)) %>% 
+  ggplot(aes(pai, ratio, col = site)) +
+  geom_point() +
+  theme_bw() +
+  geom_smooth(method = "lm") +
+  ggpubr::stat_regline_equation(
+    aes(label =  paste(..eq.label.., ..adj.rr.label.., sep = "~~~~")),
+    label.x.npc = "center"
+  ) +
+  theme(legend.position = "bottom") +
+  xlab("Plant Area Index") +
+  ylab("Mean Amplitude ratio for period 24") +
+  scale_color_discrete("Site")
+```
+
+

@@ -1,0 +1,6 @@
+*
+!.gitignore
+!get_era.py
+!imprint.Rproj
+!index.qmd
+!index.html
