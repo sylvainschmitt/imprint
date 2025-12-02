@@ -6,6 +6,8 @@ format:
   html:
     embed-resources: true
     toc: true
+    code-fold: true
+bibliography: references.bib
 ---
 
 ```{r set}
@@ -18,8 +20,7 @@ library(microclimr)
 
 # Data
 
-We downloaded back the data from the IMPRINT project (ref) using the INDORES dataverse and the R dataverse package.
-Additionally macroclimatic data were retrieved from ERA5-Land (ref) using the Google Earth Engine (get_era.py script).
+We downloaded back the data from the IMPRINT project [@gril2024] using the INDORES dataverse and the R dataverse package. Additionally macroclimatic data were retrieved from ERA5-Land [@muñoz-sabater2021] using the Google Earth Engine (`data/get_era.py` script).
 
 ```{r dataverse}
 #| eval: false
@@ -79,10 +80,13 @@ fc <- data %>%
   filter(month(datetime) %in% 5:9) %>% 
   gather(source, temperature,
          -site, -plot, -sensor, -position, -datetime, -pai) %>% 
-  group_by(source, site, plot, sensor, position, pai) %>%
+  group_by(source, site, plot, sensor, position, pai,
+           datetime = floor_date(datetime, "2 hour")) %>%
+  summarise(temperature = mean(temperature)) %>% 
+    group_by(source, site, plot, sensor, position, pai) %>%
   do(fft = fft_roll(
     data = .,
-    t = 5*24,
+    t = 5*12,
     index_col = "datetime",
     temperature_col = "temperature",
     window = "5 days",
@@ -92,14 +96,18 @@ fc <- data %>%
 write_tsv(fc, "data/decomposition.tsv")
 ```
 
+> We summarised the temperature data at a frequency of two hours to homogenise soil and air temperature sensors, but we could use different time frequencies in the future.
+
 ## Buffer
 
 We can compute back the amplitude buffer at a period of 24h.
 
 ```{r buffer}
 #| message: false
+#| warning: false
+#| fig-cap: The amplitude ratio for the 24-hour period between May and September from 2020 to 2023 for air and soil sensors in the Mormal, Blois and Aigoual forests.
 read_tsv("data/decomposition.tsv") %>% 
-  filter(period == 24) %>% 
+  filter(period == 12) %>% 
   select(source, site, plot, sensor, position, pai, power, datetime) %>% 
   pivot_wider(names_from = source, values_from = power) %>% 
   mutate(ratio = hobo/era) %>% 
@@ -113,20 +121,41 @@ read_tsv("data/decomposition.tsv") %>%
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
         axis.ticks.x = element_blank()) +
-  ylab("Amplitude ratio for the period 24")
+  ylab("Amplitude ratio for the period 24-hr") +
+  scale_y_sqrt()
 ```
 
-> Weirdly most soil sensors failed, is there issue of missing data?
+```{r buffer_summary}
+#| message: false
+#| warning: false
+#| fig-cap: The mean amplitude ratio per sensor for the 24-hour period between May and September from 2020 to 2023 for air and soil sensors in the Mormal, Blois and Aigoual forests.
+read_tsv("data/decomposition.tsv") %>% 
+  filter(period == 12) %>% 
+  select(source, site, plot, sensor, position, pai, power, datetime) %>% 
+  pivot_wider(names_from = source, values_from = power) %>% 
+  mutate(ratio = hobo/era) %>% 
+  group_by(site, plot, sensor, position, pai) %>% 
+  summarise(ratio = mean(ratio)) %>% 
+  group_by(position, site) %>% 
+  ggplot(aes(position, ratio, fill = site)) +
+  geom_boxplot() +
+  theme_bw() +
+  coord_flip() +
+  ylab("Mean amplitude ratio per sensor for the period 24-hr") +
+  xlab("") +
+  scale_y_sqrt()
+```
 
 ## Vegetation
 
-Than we can easily find back the relation with plant area index for Blois and Mormal:
+Then we can easily find the relationship with the plant area index:
 
 ```{r pai}
 #| message: false
 #| warning: false
+#| fig-cap: The relationship between the mean amplitude ratio per sensor over the 24-hour period between May and September from 2020 to 2023 for air and soil sensors, and the plot area index in the Mormal, Blois and Aigoual forests.
 read_tsv("data/decomposition.tsv") %>% 
-  filter(period == 24) %>% 
+  filter(period == 12) %>% 
   select(source, site, plot, sensor, position, pai, power, datetime) %>% 
   pivot_wider(names_from = source, values_from = power) %>% 
   mutate(ratio = hobo/era) %>% 
@@ -138,12 +167,10 @@ read_tsv("data/decomposition.tsv") %>%
   geom_smooth(method = "lm") +
   ggpubr::stat_regline_equation(
     aes(label =  paste(..eq.label.., ..adj.rr.label.., sep = "~~~~")),
-    label.x.npc = "center"
   ) +
   theme(legend.position = "bottom") +
   xlab("Plant Area Index") +
-  ylab("Mean Amplitude ratio for period 24") +
-  scale_color_discrete("Site")
+  ylab("Mean Amplitude ratio for period 24-hr") +
+  scale_color_discrete("Site") +
+  facet_wrap(~ position)
 ```
-
-

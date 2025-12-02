@@ -1,6 +1,11 @@
 *
 !.gitignore
-!get_era.py
 !imprint.Rproj
 !index.qmd
 !index.html
+!references.bib
+!NEWS.md
+!README.qmd
+!README.md
+!data
+.Rproj.user

@@ -1,0 +1,36 @@
+# IMRPINT
+Sylvain Schmitt
+Dec 2, 2025
+
+[![](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+The general idea is to test the development of
+[`microclimr`](https://github.com/sylvainschmitt/microclimr) by
+reproducing analyses of the IMRPINT project on the forest microclimate
+from the Mormal, Blois and Aigoual forests.
+
+## Usage
+
+**imprint** analyses rely on the quarto documents `index.qmd` that can
+be run with R and associated environment defined with [renv](#0).
+
+## Project
+
+**imprint** includes:
+
+- Analyse of the data with associated documentation and figures:
+  - Reproductive analyses in ``` index``.qmd ```
+  - Resulting page in `index.html`
+- All data in `data/`
+- R environment definition with
+  [renv](https://rstudio.github.io/renv/articles/renv.html) in `renv/`
+  and `renv/lock`
+- R files (`.Rbuildignore` , `.Rdata` , `.Rprofile` , `.Rhistory`)
+- Git and GitHub files (`.gitignore`)
+- Project documentation (`README.qmd` , `README.md` , `NEWS.md` ,
+  `LICENSE`)
+
+## Poeple
+
+- Sylvain Schmitt CIRAD
+- Erwan Hingant University of Picardie Jules Verne
+- Jonathan Lenoir CNRS
