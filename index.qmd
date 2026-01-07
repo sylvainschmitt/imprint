@@ -18,9 +18,9 @@ library(dataverse)
 library(microclimr)
 ```
 
-# Data
+## Data
 
-We downloaded back the data from the IMPRINT project [@gril2024] using the INDORES dataverse and the R dataverse package. Additionally macroclimatic data were retrieved from ERA5-Land [@muñoz-sabater2021] using the Google Earth Engine (`data/get_era.py` script).
+We downloaded back the data from the IMPRINT project [@gril2024] using the INDORES dataverse and the R dataverse package. Additionally macroclimatic data were retrieved from ERA5-Land [@muñoz-sabater2021] using the Google Earth Engine (`data/get_era.py` script) or shared from ONF by Erwan Hingant (pers. com.).
 
 ```{r dataverse}
 #| eval: false
@@ -49,15 +49,35 @@ lidar <- list(
 ) %>% lapply(get_dataframe_by_doi, server = "data.indores.fr") %>% 
   bind_rows(.id = "site")
 write_tsv(lidar, "data/lidar.tsv")
+lidar_sub <- lidar %>% 
+  filter(buffer == 5) %>% 
+  rename(plot = idplot) %>% 
+  select(site, plot, pai)
 era <- read_tsv("data/era.tsv") %>% 
   mutate(site = recode(dim_0, "0" = "Aigoual", "1" = "Blois", "2" = "Mormal")) %>% 
   mutate(datetime = as_datetime(time)) %>% 
   rename(era = tas) %>% 
   select(site, datetime, era)
-lidar_sub <- lidar %>% 
-  filter(buffer == 5) %>% 
-  rename(plot = idplot) %>% 
-  select(site, plot, pai)
+onf <- list.files("data/methor_data_onf/", pattern = ".txt", full.names = TRUE) %>% 
+  vroom::vroom(col_names = read_tsv("data/methor_data_onf/MetHor2018.org") %>% 
+                 names()) %>% 
+  select("Code placette",
+         "Date",
+         "Heure (TU)",
+         "Température instantanée (°C)") %>% 
+  mutate(datetime = paste0(str_sub(Date, 7, 10), "-",
+                           str_sub(Date, 4, 5), "-",
+                           str_sub(Date, 1, 2), " ",
+                           str_sub(`Heure (TU)`, 1, 2), ":",
+                           str_sub(`Heure (TU)`, 3, 4), ":00")) %>% 
+  mutate(datetime = as_datetime(datetime)) %>% 
+  rename(onf = "Température instantanée (°C)", plot = "Code placette") %>% 
+  filter(plot %in% c("CHP 59", "CHS 41", "HET 30")) %>% 
+  mutate(site = recode(plot, "CHP 59" = "Mormal",
+                       "CHS 41" = "Blois", "HET 30" = "Aigoual")) %>% 
+  select(site, datetime, onf) %>% 
+  mutate(onf = gsub(",", ".", onf)) %>% 
+  mutate(onf = as.numeric(onf))
 data <- temperatures %>% 
   mutate(datetime = as_datetime(datetime)) %>% 
   rename(hobo = t_hobo, plot = id_plot, sensor = id_sensor,
@@ -65,13 +85,34 @@ data <- temperatures %>%
   mutate(position = recode(position, "a" = "air", "s" = "soil")) %>% 
   select(site, plot, sensor, position, datetime, hobo) %>% 
   left_join(era) %>% 
+  left_join(onf) %>% 
   left_join(lidar_sub)
 write_tsv(data, "data/data.tsv")
 ```
 
+## Macroclimate
+
+First, we compared the macroclimate data from ONF local stations with the ERA5-Land reanalysis. Despite an overestimation of low temperatures in ERA5-Land, especially in Aigoual, and a slight underestimation of very high temperatures in Mormal, they show high similarity.
+
+```{r macroclimate}
+#| message: false
+#| warning: false
+#| fig-cap: Macroclimatic temperature of ONF weather stations against ERA5-Land reanalysus. The black line represents the 1:1 line and the blue line a smoothing.
+read_tsv("data/data.tsv") %>% 
+  filter(month(datetime) %in% 5:9) %>% 
+  ggplot(aes(onf, era)) +
+  geom_point(alpha = .5, col = "lightgrey") +
+  geom_abline() +
+  geom_smooth(methode = "lm", se = FALSE) +
+  facet_grid(position ~ site) +
+  theme_bw() +
+  xlab("ONF Temperature [°C]") +
+  ylab("ERA5-Land Temperature [°C]")
+```
+
 ## Decomposition
 
-We decomposed all the temperature series for ERA5-Land and HOBOs in May to September for each plot and sensor on 5 days window sliding of 3 days using a single call to `microclimr::fft_roll` (ca. 1 minute):
+We decomposed all the temperature series for ERA5-Land and HOBOs in May to September for each plot and sensor on 5 days window sliding of 3 days using a single call to `microclimr::fft_roll` (ca. 2 minute):
 
 ```{r decomposition}
 #| eval: false
@@ -98,22 +139,53 @@ write_tsv(fc, "data/decomposition.tsv")
 
 > We summarised the temperature data at a frequency of two hours to homogenise soil and air temperature sensors, but we could use different time frequencies in the future.
 
+We then computed a semi-lognormal power spectrum for air temperatures, using HOBO microclimate temperatures and ERA5-Land and ONF macroclimate temperatures, for the locations of Aigoual, Blois and Mormal. The power spectrum revealed higher power at periods 0 and 24-hr for the ERA5-Land weather stations compared to the ONF weather stations, which could bias buffer estimates.
+
+```{r power_spectrum}
+#| message: false
+#| warning: false
+#| fig-cap: Semi-lognormal power spectrum for air temperatures, using HOBO microclimate temperatures and ERA5-Land and ONF macroclimate temperatures, for the locations of Aigoual, Blois and Mormal
+"data/decomposition.tsv" %>% 
+  read_tsv() %>% 
+  filter(position == "air") %>% 
+  group_by(source, site,  frequency, period) %>% 
+  summarise(sd = sd(power, na.rm = TRUE),
+            power = mean(power, na.rm = TRUE)) %>% 
+  ggplot(aes(frequency, power+1)) +
+  geom_col() +
+  geom_linerange(aes(ymin = power+1-sd, ymax = power+1+sd)) +
+  theme_bw() +
+  xlab("Period [h]") +
+  ylab("Power") +
+  scale_x_continuous(
+    breaks = c(0, 1 / 24*2, 1 / 12*2, 1 / 8*2, 1 / 6*2, 1 / 3*2),
+    labels = c("0", "24", "12", "8", "6", "3")
+  ) +
+  theme(legend.position.inside = c(0.8, 0.8)) +
+  facet_grid(site ~ source) +
+  scale_y_log10()
+```
+
 ## Buffer
 
-We can compute back the amplitude buffer at a period of 24h.
+We then computed the amplitude buffer backwards over a 24-hour period. Using ONF macroclimate data, we observed a significant negative temperature amplitude buffer at Blois and Mormal, but not with ERA5-Land macroclimate reanalysis.
 
 ```{r buffer}
 #| message: false
 #| warning: false
-#| fig-cap: The amplitude ratio for the 24-hour period between May and September from 2020 to 2023 for air and soil sensors in the Mormal, Blois and Aigoual forests.
-read_tsv("data/decomposition.tsv") %>% 
+#| fig-cap: The amplitude ratio for the 24-hour period between May and September from 2020 to 2023 for air and soil sensors in the Mormal, Blois and Aigoual forests, for ONF and ERA5-Land macroclimate data.
+buffers <- read_tsv("data/decomposition.tsv") %>% 
   filter(period == 12) %>% 
   select(source, site, plot, sensor, position, pai, power, datetime) %>% 
   pivot_wider(names_from = source, values_from = power) %>% 
-  mutate(ratio = hobo/era) %>% 
+  mutate(ratio_era = hobo/era, ratio_onf = hobo/onf) %>% 
+  select(-era, -hobo, -onf) %>% 
+  gather(source, ratio, -site, -plot, -sensor, -pai, -datetime, -position) %>% 
+  mutate(source = gsub("ratio_", "", source))
+buffers %>% 
   ggplot(aes(plot, ratio, fill = position, col = position)) +
   geom_violin() +
-  facet_wrap(~ site, nrow = 3, scales = "free_x") +
+  facet_grid(source ~ site, scales = "free_x") +
   theme_bw() +
   scale_fill_discrete(guide = "none") +
   scale_color_discrete(guide = "none") +
@@ -128,39 +200,30 @@ read_tsv("data/decomposition.tsv") %>%
 ```{r buffer_summary}
 #| message: false
 #| warning: false
-#| fig-cap: The mean amplitude ratio per sensor for the 24-hour period between May and September from 2020 to 2023 for air and soil sensors in the Mormal, Blois and Aigoual forests.
-read_tsv("data/decomposition.tsv") %>% 
-  filter(period == 12) %>% 
-  select(source, site, plot, sensor, position, pai, power, datetime) %>% 
-  pivot_wider(names_from = source, values_from = power) %>% 
-  mutate(ratio = hobo/era) %>% 
-  group_by(site, plot, sensor, position, pai) %>% 
-  summarise(ratio = mean(ratio)) %>% 
-  group_by(position, site) %>% 
+#| fig-cap: The mean amplitude ratio per sensor for the 24-hour period between May and September from 2020 to 2023 for air and soil sensors in the Mormal, Blois and Aigoual forests, for ONF and ERA5-Land macroclimate data.
+buffers %>% 
   ggplot(aes(position, ratio, fill = site)) +
   geom_boxplot() +
   theme_bw() +
   coord_flip() +
   ylab("Mean amplitude ratio per sensor for the period 24-hr") +
   xlab("") +
-  scale_y_sqrt()
+  scale_y_sqrt() +
+  facet_wrap(~ source)
 ```
 
 ## Vegetation
 
-Then we can easily find the relationship with the plant area index:
+Then we can easily establish the relationship between the plant area index and the air temperature in Blois and Mormal.
 
 ```{r pai}
 #| message: false
 #| warning: false
+#| fig-height: 8
 #| fig-cap: The relationship between the mean amplitude ratio per sensor over the 24-hour period between May and September from 2020 to 2023 for air and soil sensors, and the plot area index in the Mormal, Blois and Aigoual forests.
-read_tsv("data/decomposition.tsv") %>% 
-  filter(period == 12) %>% 
-  select(source, site, plot, sensor, position, pai, power, datetime) %>% 
-  pivot_wider(names_from = source, values_from = power) %>% 
-  mutate(ratio = hobo/era) %>% 
-  group_by(site, plot, sensor, position, pai) %>% 
-  summarise(ratio = mean(ratio)) %>% 
+buffers %>% 
+  group_by(source, site, plot, sensor, position, pai) %>% 
+  summarise(ratio = mean(ratio, na.rm = TRUE)) %>% 
   ggplot(aes(pai, ratio, col = site)) +
   geom_point() +
   theme_bw() +
@@ -172,5 +235,5 @@ read_tsv("data/decomposition.tsv") %>%
   xlab("Plant Area Index") +
   ylab("Mean Amplitude ratio for period 24-hr") +
   scale_color_discrete("Site") +
-  facet_wrap(~ position)
+  facet_grid(source ~ position)
 ```

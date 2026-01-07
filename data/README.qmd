@@ -19,6 +19,7 @@ This folder will contains the data for all analyses:
 -   `era.tsv`: ERA5-Land data for the three forests
 -   `data.tsv`: all assembled raw data
 -   `decomposition.tsv`: macrolimate and microclimate decomposition with Fourier's transformations
+-   `methor_data_onf/`: macrolimate ONF data shared by Erwan Hingant raw data
 
 All analyses and files production can be found in the [analyses](https://sylvainschmitt.github.io/imprint/).
 

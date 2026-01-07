@@ -1,6 +1,6 @@
 # Data
 Sylvain Schmitt -
-Dec 2, 2025
+Jan 7, 2026
 
 This folder will contains the data for all analyses:
 
@@ -14,6 +14,8 @@ This folder will contains the data for all analyses:
 - `data.tsv`: all assembled raw data
 - `decomposition.tsv`: macrolimate and microclimate decomposition with
   Fourier’s transformations
+- `methor_data_onf/`: macrolimate ONF data shared by Erwan Hingant raw
+  data
 
 All analyses and files production can be found in the
 [analyses](https://sylvainschmitt.github.io/imprint/).
@@ -33,4 +35,12 @@ fs::dir_tree()
     ├── get_era.py
     ├── hobo.tsv
     ├── lidar.tsv
+    ├── methor_data_onf
+    │   ├── MetHor2018.org
+    │   ├── MetHor2018.txt
+    │   ├── MetHor2019.txt
+    │   ├── MetHor2020.txt
+    │   ├── MetHor2021.txt
+    │   ├── MetHor2022.txt
+    │   └── MetHor2023.txt
     └── plots.tsv
