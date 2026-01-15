@@ -97,7 +97,7 @@ First, we compared the macroclimate data from ONF local stations with the ERA5-L
 ```{r macroclimate}
 #| message: false
 #| warning: false
-#| fig-cap: Macroclimatic temperature of ONF weather stations against ERA5-Land reanalysus. The black line represents the 1:1 line and the blue line a smoothing.
+#| fig-cap: Macroclimatic temperature of ONF weather stations against ERA5-Land reanalysis. The black line represents the 1:1 line and the blue line a smoothing.
 read_tsv("data/data.tsv") %>% 
   filter(month(datetime) %in% 5:9) %>% 
   ggplot(aes(onf, era)) +
@@ -139,7 +139,7 @@ write_tsv(fc, "data/decomposition.tsv")
 
 > We summarised the temperature data at a frequency of two hours to homogenise soil and air temperature sensors, but we could use different time frequencies in the future.
 
-We then computed a semi-lognormal power spectrum for air temperatures, using HOBO microclimate temperatures and ERA5-Land and ONF macroclimate temperatures, for the locations of Aigoual, Blois and Mormal. The power spectrum revealed higher power at periods 0 and 24-hr for the ERA5-Land weather stations compared to the ONF weather stations, which could bias buffer estimates.
+We then computed a semi-lognormal power spectrum for air temperatures, using HOBO microclimate temperatures and ERA5-Land and ONF macroclimate temperatures, for the locations of Aigoual, Blois and Mormal. The power spectrum revealed higher power at periods 0 and 24-hr for the ERA5-Land data reanalysis compared to the ONF weather stations, which could bias buffer estimates.
 
 ```{r power_spectrum}
 #| message: false
@@ -187,8 +187,6 @@ buffers %>%
   geom_violin() +
   facet_grid(source ~ site, scales = "free_x") +
   theme_bw() +
-  scale_fill_discrete(guide = "none") +
-  scale_color_discrete(guide = "none") +
   geom_hline(yintercept = 1) +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
