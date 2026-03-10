@@ -331,4 +331,66 @@ buffers %>%
 
 ## Projections & frequencies
 
-> Add here different projections for a given time period with mean signal, 24-hr harmonics and residual variation.
+We can also use the Fourier decomposition to reproject the temperature for different frequencies and illustrate how the Fourier decomposition works.
+
+```{r proj_freq}
+#| message: false
+#| warning: false
+#| fig-cap: HOBO temperature decomposition and reprojection for different frequencies. We used a temperature serie from the 15th to the 20th of May 2023 for a HOBO in Mormal forest measuring air temperature in plot 59_40 with raw data represented in upper left panel. Lower left panel represent the resulting power spectrum after Fourrier's decomposition, with a mean temperature of 1..56°C and frequency above 1/24h highlighted in blue ("trend") and frequency 1/24h and its harmonics highlighted in red ("day"). The resulting temperature projections for the highlighted frequencies are given in the upper right panel (trend in blue) and lower right panel (day in red).
+cols <- c("firebrick", "darkgrey",  "darkblue")
+data <- "data/data.tsv" %>% 
+  read_tsv() %>% 
+  filter(year(datetime) == 2023,
+         month(datetime) == 5) %>% 
+  filter(site == "Mormal",
+         position == "air",
+         plot == "59_40") %>% 
+  arrange(datetime) %>% 
+  filter(day(datetime) %in% 15:20)
+fc <- fft_tab(data$hobo, 24*6) %>% 
+  mutate(amplitude = Re(coefficient),
+         phase = Im(coefficient)) %>% 
+  mutate(coeff_sup = ifelse(frequency > 1/(24+1), 0, 
+                            complex(real = amplitude, imaginary = phase))) %>% 
+  mutate(type = ifelse(frequency > 1/(24+1), "other", "trend")) %>% 
+  mutate(coeff_day = ifelse(frequency  %in% c((1:12)/24),
+                            complex(real = amplitude, imaginary = phase), 0)) %>% 
+  mutate(type = ifelse(frequency  %in% c((1:12)/24), "day", type)) 
+data$t_sup <- fft_reconstruct(fc$coeff_sup, fc$frequency[-1], 1:144)
+data$t_day <- fft_reconstruct(fc$coeff_day, fc$frequency[-1], 1:144)+fc$power[1]
+g_data <- ggplot(data, aes(datetime, hobo)) +
+  geom_line() +
+  geom_point() +
+  theme_bw() +
+  xlab("") + ylab("Temperature [°C]") +
+  ylim(3, 22)
+g_fc <- fc %>% 
+  filter(period != 0) %>% 
+  ggplot(aes(frequency, power, fill = type)) +
+  geom_col() +
+  theme_bw() +
+  scale_x_continuous(
+    breaks = c(1/24, 1/12, 1/8, 1/6, 1/4),
+    labels = c("1/24", "2/24", "3/24", "4/24", "6/24")
+  ) +
+  scale_fill_manual("", values = cols) +
+  theme(legend.position = c(0.8, 0.6)) + 
+  xlab("Frequency [hr]") + ylab("Power [°C]") +
+  theme(axis.text.x = element_text(angle = 45)) +
+  annotate("text", x=3/24, y=4, label = paste0("Mean:", round(fc$power[1],2)))
+g_sup <- ggplot(data, aes(datetime, t_sup)) +
+  geom_line(col = cols[3]) +
+  theme_bw() +
+  xlab("") + ylab("") +
+  ylim(3, 22) +
+  annotate("text", x=data$datetime[24], y=20, label = "trend", col = cols[3])
+g_day <- ggplot(data, aes(datetime, t_day)) +
+  geom_line(col = cols[1]) +
+  theme_bw() +
+  xlab("") + ylab("") +
+  ylim(3, 22) +
+  annotate("text", x=data$datetime[24], y=20, label = "day", col = cols[1])
+gridExtra::grid.arrange(grobs = list(g_data, g_fc, g_sup, g_day),
+                        layout_matrix = cbind(c(1, 2), c(3, 4)),
+                        widths = c(1.5, 1))
+```
