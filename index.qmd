@@ -16,6 +16,8 @@ bibliography: references.bib
 library(tidyverse)
 library(dataverse)
 library(microclimr)
+library(maps)
+library(colorspace)
 ```
 
 ## Data
@@ -88,6 +90,37 @@ data <- temperatures %>%
   left_join(onf) %>% 
   left_join(lidar_sub)
 write_tsv(data, "data/data.tsv")
+```
+
+## Study area
+
+```{r map_france}
+#| message: false
+#| warning: false
+sites <- read_tsv("data/plots.tsv") %>% 
+  group_by(site) %>% 
+  summarise_all(mean) %>% 
+  rename(long = longwgs84, lat = latwgs84) 
+france <- map_data("france")
+fr <- ggplot(france, aes(x = long, y = lat)) +
+  geom_polygon(aes(group = group), fill = "lightgrey", color = NA) +
+  geom_point(data = sites, size = 2) +
+  ggrepel::geom_text_repel(data = sites, aes(label = site)) +
+  coord_fixed(1.2) +
+  theme_void() +
+  theme(
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+sites <- read_tsv("data/plots.tsv") %>% 
+  rename(lon = longwgs84, lat = latwgs84) %>%
+  split(.$site) %>% 
+  lapply(function(x)
+    sf::st_as_sf(x, coords = c("lon", "lat"), crs = 4326) %>% 
+    ggplot() +
+      geom_sf() +
+      theme_bw() +
+      ggtitle(unique(x$site)))
+cowplot::plot_grid(plotlist = c(fr, sites))
 ```
 
 ## Macroclimate
@@ -390,6 +423,80 @@ g_day <- ggplot(data, aes(datetime, t_day)) +
   xlab("") + ylab("") +
   ylim(3, 22) +
   annotate("text", x=data$datetime[24], y=20, label = "day", col = cols[1])
+gridExtra::grid.arrange(grobs = list(g_data, g_fc, g_sup, g_day),
+                        layout_matrix = cbind(c(1, 2), c(3, 4)),
+                        widths = c(1.5, 1))
+```
+
+```{r proj_freq2}
+#| message: false
+#| warning: false
+#| fig-cap: HOBO and weather station temperature decomposition and reprojection for different frequencies. We used a temperature serie from the 15th to the 20th of May 2023 for a HOBO in Mormal forest measuring air temperature in plot 59_40 with raw data represented in upper left panel. Lower left panel represent the resulting power spectrum after Fourrier's decomposition, with a mean temperature of 1..56°C and frequency above 1/24h highlighted in blue ("trend") and frequency 1/24h and its harmonics highlighted in red ("day"). The resulting temperature projections for the highlighted frequencies are given in the upper right panel (trend in blue) and lower right panel (day in red).
+cols <- c("firebrick", "darkgrey",  "darkblue")
+data <- "data/data.tsv" %>% 
+  read_tsv() %>% 
+  filter(year(datetime) == 2023,
+         month(datetime) == 8) %>% 
+  filter(position == "air",
+         plot == "59_58") %>% 
+  arrange(datetime) %>% 
+  filter(day(datetime) %in% 7:12)
+fc_h <- fft_tab(data$hobo, 24*6) %>% 
+  mutate(amplitude = Re(coefficient),
+         phase = Im(coefficient)) %>% 
+  mutate(coeff_sup = ifelse(frequency > 1/(24+1), 0, 
+                            complex(real = amplitude, imaginary = phase))) %>% 
+  mutate(type = ifelse(frequency > 1/(24+1), "other", "trend")) %>% 
+  mutate(coeff_day = ifelse(frequency  %in% c((1:12)/24),
+                            complex(real = amplitude, imaginary = phase), 0)) %>% 
+  mutate(type = ifelse(frequency  %in% c((1:12)/24), "day", type)) 
+data$t_h_sup <- fft_reconstruct(fc_h$coeff_sup, fc_h$frequency[-1], 1:144)
+data$t_h_day <- fft_reconstruct(fc_h$coeff_day, fc_h$frequency[-1], 1:144)+fc_h$power[1]
+fc_o <- fft_tab(data$onf, 24*6) %>% 
+  mutate(amplitude = Re(coefficient),
+         phase = Im(coefficient)) %>% 
+  mutate(coeff_sup = ifelse(frequency > 1/(24+1), 0, 
+                            complex(real = amplitude, imaginary = phase))) %>% 
+  mutate(type = ifelse(frequency > 1/(24+1), "other", "trend")) %>% 
+  mutate(coeff_day = ifelse(frequency  %in% c((1:12)/24),
+                            complex(real = amplitude, imaginary = phase), 0)) %>% 
+  mutate(type = ifelse(frequency  %in% c((1:12)/24), "day", type)) 
+data$t_o_sup <- fft_reconstruct(fc_o$coeff_sup, fc_o$frequency[-1], 1:144)
+data$t_o_day <- fft_reconstruct(fc_o$coeff_day, fc_o$frequency[-1], 1:144)+fc_o$power[1]
+g_data <- ggplot(data, aes(x = datetime)) +
+  geom_line(aes(y = onf), col = lighten("black", 0.5)) +
+  geom_line(aes(y = hobo), col = "black") +
+  theme_bw() +
+  xlab("") + ylab("Temperature [°C]") +
+  ylim(8, 28)
+g_fc <- fc %>% 
+  filter(period != 0) %>% 
+  ggplot(aes(frequency, power, fill = type)) +
+  geom_col() +
+  theme_bw() +
+  scale_x_continuous(
+    breaks = c(1/24, 1/12, 1/8, 1/6, 1/4),
+    labels = c("1/24", "2/24", "3/24", "4/24", "6/24")
+  ) +
+  scale_fill_manual("", values = cols) +
+  theme(legend.position = c(0.8, 0.6)) + 
+  xlab("Frequency [hr]") + ylab("Power [°C]") +
+  theme(axis.text.x = element_text(angle = 45)) +
+  annotate("text", x=3/24, y=4, label = paste0("Mean:", round(fc$power[1],2)))
+g_sup <- ggplot(data, aes(datetime)) +
+  geom_line(aes(y = t_o_sup), col = lighten(cols[3], 0.5)) +
+  geom_line(aes(y = t_h_sup), col = cols[3]) +
+  theme_bw() +
+  xlab("") + ylab("") +
+  ylim(8, 28) +
+  annotate("text", x=data$datetime[24], y=25, label = "trend", col = cols[3])
+g_day <- ggplot(data, aes(datetime)) +
+  geom_line(aes(y = t_o_day), col = lighten(cols[1], 0.5)) +
+  geom_line(aes(y = t_h_day), col = cols[1]) +
+  theme_bw() +
+  xlab("") + ylab("") +
+  ylim(8, 28) +
+  annotate("text", x=data$datetime[24], y=25, label = "day", col = cols[1])
 gridExtra::grid.arrange(grobs = list(g_data, g_fc, g_sup, g_day),
                         layout_matrix = cbind(c(1, 2), c(3, 4)),
                         widths = c(1.5, 1))
