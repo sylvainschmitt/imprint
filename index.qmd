@@ -175,11 +175,14 @@ fc_o <- fft_tab(data$onf, 24*6) %>%
 data$t_o_sup <- fft_reconstruct(fc_o$coeff_sup, fc_o$frequency[-1], 1:144)
 data$t_o_day <- fft_reconstruct(fc_o$coeff_day, fc_o$frequency[-1], 1:144)+fc_o$power[1]
 g_data <- ggplot(data, aes(x = datetime)) +
-  geom_line(aes(y = onf), col = lighten("black", 0.5)) +
-  geom_line(aes(y = hobo), col = "black") +
+  geom_line(aes(y = era, col = "Macro")) +
+  geom_line(aes(y = onf, col = "Micro")) +
   theme_bw() +
+  scale_color_manual("", values = c(lighten("black", 0.5), "black")) +
   xlab("") + ylab("Temperature [°C]") +
-  ylim(8, 28)
+  ylim(8, 28) +
+  theme(legend.position = c(0.3, 0.8), 
+        legend.background = element_blank())
 g_fc <- fc_h %>% 
   filter(period != 0) %>% 
   ggplot(aes(frequency, power, fill = type)) +
@@ -269,7 +272,7 @@ cowplot::plot_grid(plotlist = c(fr, si))
 
 ## Study case 1 - Microclimate assessment
 
-We decomposed all the temperature series for ERA5-Land and HOBOs in May to September for each plot and sensor on 5 days window sliding of 3 days. We then built power spectrums for air temperatures (@fig-ps), using HOBO microclimate temperatures and ERA5-Land and ONF macroclimate temperatures, for the locations of Aigoual, Blois and Mormal. The power spectrum revealed higher mean temperature and power at 24-hr periods for the ERA5-Land data reanalysis compared to the ONF weather stations, which could bias buffer estimates (see also @fig-macro to discuss bias). *Need to add SIs on buffer [@fig-bufferobs, @fig-buffer]. Need to say we found back the link with vegetation from previous studies [@fig-pai]*
+We decomposed all the temperature series for ERA5-Land and HOBOs in May to September for each plot and sensor on 5 days window sliding of 3 days. We then built power spectrums for air temperatures (@fig-ps), using HOBO microclimate temperatures and ERA5-Land and ONF macroclimate temperatures, for the locations of Aigoual, Blois and Mormal. The power spectrum revealed higher mean temperature and power at 24-hr periods for the ERA5-Land data reanalysis compared to the ONF weather stations, which could bias buffer estimates. *Need to add SIs on buffer (@fig-buffer). Need to say we found back the link with vegetation from previous studies \[@fig-pai\].*
 
 ```{r ps}
 #| label: fig-ps
@@ -351,41 +354,87 @@ read_tsv("data/decomposition.tsv") %>%
 
 *Example of debiasing between ONF and ERA5-Land for on of the sites.*
 
+```{r debias}
+#| label: fig-debias
+#| message: false
+#| warning: false
+#| fig-cap: Caption.
+cols <- c("#0F6E56", "#BA7517")
+data <- "data/data.tsv" %>% 
+  read_tsv() %>% 
+  filter(year(datetime) == 2023,
+         month(datetime) == 8) %>% 
+  filter(position == "air",
+         plot == "59_58") %>% 
+  arrange(datetime) %>% 
+  filter(day(datetime) %in% 7:12)
+g_data <- ggplot(data, aes(x = datetime)) +
+  geom_line(aes(y = era, col = "ERA5-Land")) +
+  geom_line(aes(y = onf, col = "ONF")) +
+  theme_bw() +
+  scale_color_manual("", values = cols) +
+  xlab("") + ylab("Temperature [°C]") +
+  ylim(8, 28) +
+  theme(legend.position = c(0.3, 0.8), 
+        legend.background = element_blank())
+fc_e <- fft_tab(data$era, 24*6) %>% 
+  mutate(amplitude = Re(coefficient),
+         phase = Im(coefficient))
+fc_o <- fft_tab(data$onf, 24*6) %>% 
+  mutate(amplitude = Re(coefficient),
+         phase = Im(coefficient))
+g_fc <- list(era = fc_e, onf = fc_o) %>%
+  bind_rows(.id = "origin") %>% 
+  filter(period != 0) %>% 
+  ggplot(aes(frequency, power, fill = origin)) +
+  geom_col(position = "dodge") +
+  theme_bw() +
+  scale_x_continuous(
+    breaks = c(1/24, 1/12, 1/8, 1/6, 1/4),
+    labels = c("1/24", "2/24", "3/24", "4/24", "6/24")
+  ) +
+  theme(legend.position = c(0.8, 0.6)) + 
+  xlab("Frequency [hr]") + ylab("Power [°C]") +
+  theme(axis.text.x = element_text(angle = 45)) +
+  scale_fill_manual(guide = "none", values = cols) +
+  annotate("text", x=5/24, y=3, 
+           label = paste0("Mean:", round(fc_e$power[1],2), " vs. ",
+                          round(fc_o$power[1],2)))
+g_cor <- list(era = fc_e, onf = fc_o) %>%
+  bind_rows(.id = "origin") %>% 
+   select(origin, frequency, period, amplitude) %>% 
+   pivot_wider(names_from = origin, values_from = amplitude) %>% 
+   ggplot(aes(frequency, onf/era)) +
+   geom_hline(yintercept = 1, col = "darkgrey") + 
+   geom_smooth(method = "lm", se = FALSE) +
+   geom_point() +
+   theme_bw() +
+   scale_x_continuous(
+    breaks = c(1/24, 1/12, 1/8, 1/6, 1/4),
+    labels = c("1/24", "2/24", "3/24", "4/24", "6/24")
+  ) + scale_y_log10() +
+   xlab("Frequency [h]") +
+   ylab("Ratio ONF vs. ERA5-Land") +
+  theme(axis.text.x = element_text(angle = 45))
+svg_raster <- rsvg::rsvg_nativeraster("data/debiasing_scheme.svg")
+g_scheme   <- grid::rasterGrob(svg_raster, interpolate = TRUE)
+# gridExtra::grid.arrange(grobs = list(g_data, g_fc, g_cor),
+#                         layout_matrix = cbind(c(1, 1), c(2, 3)),
+#                         widths = c(1, 1.5))
+cowplot::plot_grid(g_scheme, g_data, g_fc, g_cor)
+```
+
 ## Discusson
 
 *Discussion.*
 
 ## Supplementary material
 
-```{r macro_code}
+```{r buffer}
+#| label: fig-buffer
 #| message: false
 #| warning: false
-#| eval: false
-g <- read_tsv("data/data.tsv") %>% 
-  filter(position == "air") %>% 
-  filter(month(datetime) %in% 5:9) %>% 
-  ggplot(aes(onf, era)) +
-  geom_point(alpha = .5, col = "lightgrey") +
-  geom_abline() +
-  geom_smooth(methode = "lm", se = FALSE) +
-  facet_wrap( ~ site) +
-  theme_bw() +
-  xlab("ONF weather station Temperature [°C]") +
-  ylab("ERA5-Land Temperature [°C]")
-ggsave("fig1.png", g)
-```
-
-```{r macro_fig}
-#| label: fig-macro
-#| fig-cap: Macroclimatic temperature of ONF weather stations against ERA5-Land reanalysis. The black line represents the 1:1 line and the blue line a smoothing. Despite an overestimation of low temperatures in ERA5-Land, especially in Aigoual, and a slight underestimation of very high temperatures in Mormal, they show high similarity.
-knitr::include_graphics("fig1.png")
-```
-
-```{r bufferobs}
-#| label: fig-bufferobs
-#| message: false
-#| warning: false
-#| fig-cap: Number of windows with available data for 5-days windows sliding on 3 days between May and September from 2020 to 2023 for air and soil sensors in the Mormal, Blois and Aigoual forests, for ONF and ERA5-Land macroclimate data.
+#| fig-cap: The amplitude ratio for the 24-hour period between May and September from 2020 to 2023 for air and soil sensors in the Mormal, Blois and Aigoual forests, for ONF and ERA5-Land macroclimate data.
 buffers <- read_tsv("data/decomposition.tsv") %>% 
   filter(period == 12) %>% 
   select(source, site, plot, sensor, position, pai, power, datetime) %>% 
@@ -394,25 +443,6 @@ buffers <- read_tsv("data/decomposition.tsv") %>%
   select(-era, -hobo, -onf) %>% 
   gather(source, ratio, -site, -plot, -sensor, -pai, -datetime, -position) %>% 
   mutate(source = gsub("ratio_", "", source))
-buffers %>% 
-  mutate(source = recode(source,
-                         "era" = "ERA5-Land",
-                         "onf" = "ONF weather station")) %>% 
-  group_by(plot, position, source) %>% 
-  summarise(nobs = n()) %>% 
-  ggplot(aes(nobs)) +
-  geom_histogram(fill = "lightgrey") +
-  facet_grid(position ~ source) +
-  theme_bw() +
-  geom_vline(xintercept = 107) +
-  xlab("Number of windows")
-```
-
-```{r buffer}
-#| label: fig-buffer
-#| message: false
-#| warning: false
-#| fig-cap: The amplitude ratio for the 24-hour period between May and September from 2020 to 2023 for air and soil sensors in the Mormal, Blois and Aigoual forests, for ONF and ERA5-Land macroclimate data.
 buffers %>% 
   group_by(plot, position, source) %>% 
   filter(n() > 107) %>%

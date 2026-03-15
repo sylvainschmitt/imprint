@@ -1,3 +1,4 @@
+-   imprint 0.1.0.9008: Debias section
 -   imprint 0.1.0.9007: Article restructuration
 -   imprint 0.1.0.9006: Jonathan's suggestions
 -   imprint 0.1.0.9005: 24-h vs. mean fig and freq-proj fig
