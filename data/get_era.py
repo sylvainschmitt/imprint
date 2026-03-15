@@ -18,3 +18,17 @@ ds = ds.sel(lon = xr.DataArray(coords.lon),
             method='nearest')
 ds_df = ds.to_dataframe()
 ds_df.to_csv("era.tsv", sep="\t", index=True)
+
+ic = ee.ImageCollection("ECMWF/ERA5_LAND/HOURLY").filter(ee.Filter.date('2023-07-11', '2023-09-11'))
+ds = xr.open_mfdataset([ic], engine='ee', crs="EPSG:4326", scale=0.1, geometry=ee.Geometry.Rectangle([-5.5, 41.0, 10.0, 51.5]))
+t2m = (
+    ds["temperature_2m"]
+    .sel(time="2023-08-11T12:00:00", method="nearest")
+    .compute()                          # déclenche le téléchargement
+    - 273.15                            # Kelvin → Celsius
+)
+t2m.attrs["units"] = "°C"
+t2m = t2m.rio.write_crs("EPSG:4326")
+t2m = t2m.rio.set_spatial_dims(x_dim="lon", y_dim="lat")
+tif_path = "erafrance.tif"
+t2m.transpose('lat', 'lon').to_netcdf("erafrance.nc")
