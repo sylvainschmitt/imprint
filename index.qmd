@@ -228,7 +228,7 @@ sites <- read_tsv("data/plots.tsv") %>%
   rename(long = longwgs84, lat = latwgs84) 
 france <- map_data("france")
 fr <- ggplot(france, aes(x = long, y = lat)) +
-  tidyterra::geom_spatraster(data = rast("data/erafrance.nc"), alpha = .5) +
+  tidyterra::geom_spatraster(data = rast("data/erafrance.nc"), alpha = .9) +
   geom_point(data = sites, size = 2) +
   ggrepel::geom_text_repel(data = sites, aes(label = site)) +
   coord_sf() +
@@ -252,7 +252,7 @@ si <- read_tsv("data/plots.tsv") %>%
     points <- sf::st_as_sf(x, coords = c("lon", "lat"), crs = 4326)
     bg <- maptiles::get_tiles(points, provider = "Esri.WorldImagery", zoom = 12)
     ggplot(points, aes(fill = hobo)) +
-      tidyterra::geom_spatraster_rgb(data = bg) +
+      tidyterra::geom_spatraster_rgb(data = bg, alpha = .9) +
       geom_sf(shape = 21, col = "black") +
       theme_bw() +
       ggtitle(unique(x$site)) +
@@ -261,7 +261,7 @@ si <- read_tsv("data/plots.tsv") %>%
         palette  = "lajolla",
         midpoint = 25,
         limits   = c(12, 35),
-        na.value = "grey90", direction = -1
+        na.value = "darkgrey", direction = -1
       )
   })
 cowplot::plot_grid(plotlist = c(fr, si))
