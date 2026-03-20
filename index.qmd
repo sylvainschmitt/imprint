@@ -176,7 +176,7 @@ data$t_o_sup <- fft_reconstruct(fc_o$coeff_sup, fc_o$frequency[-1], 1:144)
 data$t_o_day <- fft_reconstruct(fc_o$coeff_day, fc_o$frequency[-1], 1:144)+fc_o$power[1]
 g_data <- ggplot(data, aes(x = datetime)) +
   geom_line(aes(y = era, col = "Macro")) +
-  geom_line(aes(y = onf, col = "Micro")) +
+  geom_line(aes(y = hobo, col = "Micro")) +
   theme_bw() +
   scale_color_manual("", values = c(lighten("black", 0.5), "black")) +
   xlab("") + ylab("Temperature [°C]") +
@@ -211,9 +211,15 @@ g_day <- ggplot(data, aes(datetime)) +
   xlab("") + ylab("") +
   ylim(8, 28) +
   annotate("text", x=data$datetime[24], y=25, label = "day", col = cols[1])
-gridExtra::grid.arrange(grobs = list(g_data, g_fc, g_sup, g_day),
+g <- gridExtra::grid.arrange(grobs = list(g_data, g_fc, g_sup, g_day),
                         layout_matrix = cbind(c(1, 2), c(3, 4)),
                         widths = c(1.5, 1))
+cowplot::save_plot("figs/fourier.png", 
+                   plot = g, 
+                   base_width = 10, 
+                   base_height = 8, 
+                   dpi = 300,
+                   bg = "white")
 ```
 
 ## Study sites and data
@@ -229,6 +235,9 @@ sites <- read_tsv("data/plots.tsv") %>%
   group_by(site) %>% 
   summarise_all(mean) %>% 
   rename(long = longwgs84, lat = latwgs84) 
+stations <- readxl::read_xlsx("data/methor_data_onf/coord_stations_meteo_renecofor.xlsx") %>% 
+  mutate(site = c("Mormal", "Blois", "Aigoual")) %>% 
+  mutate(lon = X, lat = Y)
 france <- map_data("france")
 fr <- ggplot(france, aes(x = long, y = lat)) +
   tidyterra::geom_spatraster(data = rast("data/erafrance.nc"), alpha = .9) +
@@ -248,31 +257,64 @@ fr <- ggplot(france, aes(x = long, y = lat)) +
     )
 si <- read_tsv("data/plots.tsv") %>% 
   rename(plot = idplot) %>% 
-  left_join(read_tsv("data/data.tsv") %>% filter(position == "air", datetime == as_datetime("2023-08-11 12:00:00")) %>% select(plot, hobo)) %>% 
+  left_join(read_tsv("data/data.tsv") %>% 
+              filter(position == "air", 
+                     datetime == as_datetime("2023-08-11 12:00:00")) %>% 
+              select(plot, hobo)) %>% 
   rename(lon = longwgs84, lat = latwgs84) %>%
+  group_by(site) %>% 
+  mutate(hobo = ifelse(is.na(hobo), mean(hobo, na.rm = TRUE), hobo)) %>% 
   split(.$site) %>% 
   lapply(function(x) {
     points <- sf::st_as_sf(x, coords = c("lon", "lat"), crs = 4326)
-    bg <- maptiles::get_tiles(points, provider = "Esri.WorldImagery", zoom = 12)
-    ggplot(points, aes(fill = hobo)) +
-      tidyterra::geom_spatraster_rgb(data = bg, alpha = .9) +
-      geom_sf(shape = 21, col = "black") +
-      theme_bw() +
-      ggtitle(unique(x$site)) +
-      scico::scale_fill_scico(
-        guide = "none",
-        palette  = "lajolla",
-        midpoint = 25,
-        limits   = c(12, 35),
-        na.value = "darkgrey", direction = -1
-      )
+    lat_scale <- cos(mean(x$lat) * pi / 180)
+    bbox <- sf::st_bbox(points)
+    cx   <- (bbox["xmin"] + bbox["xmax"]) / 2
+    cy   <- (bbox["ymin"] + bbox["ymax"]) / 2
+    half_lat <- max((bbox["xmax"] - bbox["xmin"]) * lat_scale,
+                     bbox["ymax"] - bbox["ymin"]) / 2 + 0.05
+    sq_bbox <- c(xmin = cx - half_lat / lat_scale, xmax = cx + half_lat / lat_scale,
+                 ymin = cy - half_lat, ymax = cy + half_lat)
+    names(sq_bbox) <- c("xmin", "xmax", "ymin", "ymax")
+    sq_sfc <- sf::st_bbox(sq_bbox, crs = 4326) %>% sf::st_as_sfc()
+    bg <- maptiles::get_tiles(sq_sfc, provider = "Esri.WorldImagery", zoom = 12)
+    ggplot(points) +
+    tidyterra::geom_spatraster_rgb(data = bg, alpha = .9) +
+    geom_sf(aes(fill = hobo), shape = 21, col = "black") +
+    geom_text(data = filter(stations, site == unique(x$site)),
+          aes(x = lon, y = lat),
+          label = "★", color = "white", size = 5) +
+    coord_sf(
+      xlim   = c(cx - half_lat / lat_scale, cx + half_lat / lat_scale),
+      ylim   = c(cy - half_lat, cy + half_lat),
+      expand = FALSE
+    ) +
+    theme(axis.text.x = element_text(angle = 90, size = 5),
+          axis.text.y = element_text(size = 5)) +
+    theme(aspect.ratio = 1) +
+    theme_bw() +
+    ggtitle(unique(x$site)) +
+    scico::scale_fill_scico(
+      guide  = "none",
+      palette = "lajolla",
+      midpoint = 25,
+      limits = c(12, 35),
+      na.value = "darkgrey", direction = -1
+    ) + xlab("") + ylab("")
   })
-cowplot::plot_grid(plotlist = c(fr, si))
+g <- cowplot::plot_grid(plotlist = c(fr, si))
+cowplot::save_plot("figs/sites.png", 
+                   plot = g, 
+                   base_width = 10, 
+                   base_height = 8, 
+                   dpi = 300,
+                   bg = "white")
+g
 ```
 
 ## Study case 1 - Microclimate assessment
 
-We decomposed all the temperature series for ERA5-Land and HOBOs in May to September for each plot and sensor on 5 days window sliding of 3 days. We then built power spectrums for air temperatures (@fig-ps), using HOBO microclimate temperatures and ERA5-Land and ONF macroclimate temperatures, for the locations of Aigoual, Blois and Mormal. The power spectrum revealed higher mean temperature and power at 24-hr periods for the ERA5-Land data reanalysis compared to the ONF weather stations, which could bias buffer estimates. *Need to add SIs on buffer (@fig-buffer). Need to say we found back the link with vegetation from previous studies \[@fig-pai\].*
+We decomposed all the temperature series for ERA5-Land and HOBOs in May to September for each plot and sensor on 5 days window sliding of 3 days. We then built power spectrums for air temperatures (@fig-ps), using HOBO microclimate temperatures and ERA5-Land and ONF macroclimate temperatures, for the locations of Aigoual, Blois and Mormal. The power spectrum revealed higher mean temperature and power at 24-hr periods for the ERA5-Land data reanalysis compared to the ONF weather stations, which could bias buffer estimates. *Need to add SIs on buffer (@fig-buffer). Need to say we found back the link with vegetation from previous studies [@fig-pai].*
 
 ```{r ps}
 #| label: fig-ps
@@ -290,7 +332,7 @@ t <- "data/decomposition.tsv" %>%
                          "onf" = "ONF weather station",
                          "hobo" = paste("HOBO", position))) %>% 
   filter(!(type == "Macro" && position == "soil"))
-t %>% 
+g <- t %>% 
   filter(period != 0) %>% 
   ggplot(aes(frequency, power)) +
   geom_col(fill = "darkgrey") +
@@ -307,6 +349,13 @@ t %>%
   geom_text(x = 1/3, y = 6,
             aes(label = paste0("Mean: ", round(power), "±", round(sd))), 
             data = filter(t, period ==0))
+cowplot::save_plot("figs/buffer.png", 
+                   plot = g, 
+                   base_width = 10, 
+                   base_height = 8, 
+                   dpi = 300,
+                   bg = "white")
+g
 ```
 
 We then computed the microclimate buffers as ratios of mean temperature and power for the 24-hr period (@fig-ratios). We look only at sensors with at least 2/3 of expected windows (160). *Interperation.*
@@ -316,7 +365,7 @@ We then computed the microclimate buffers as ratios of mean temperature and powe
 #| message: false
 #| warning: false
 #| fig-cap: Mean temperature vs. 24-h amplitude ratios of HOBO microclimate sensors against ONF weather station for air and soil sensors at Aigoual, Blois and Mormal forests. The point represents the median, the thick line the 50 percent distribution and the thine line the 90 percent distribution.
-read_tsv("data/decomposition.tsv") %>% 
+g <- read_tsv("data/decomposition.tsv") %>% 
   filter(source != "era") %>% 
   filter(period %in% c(0,12)) %>% 
   pivot_wider(names_from = source, values_from = power) %>% 
@@ -348,6 +397,13 @@ read_tsv("data/decomposition.tsv") %>%
   scale_color_manual("", values = c("#a9d9e5", "#c89867")) +
   xlab("Mean temperature ratio") +
   ylab("24-h amplitude ratio")
+cowplot::save_plot("figs/buffer2.png", 
+                   plot = g, 
+                   base_width = 10, 
+                   base_height = 8, 
+                   dpi = 300,
+                   bg = "white")
+g
 ```
 
 ## Study case 2 - Macroclimate debiasing
@@ -418,10 +474,14 @@ g_cor <- list(era = fc_e, onf = fc_o) %>%
   theme(axis.text.x = element_text(angle = 45))
 svg_raster <- rsvg::rsvg_nativeraster("data/debiasing_scheme.svg")
 g_scheme   <- grid::rasterGrob(svg_raster, interpolate = TRUE)
-# gridExtra::grid.arrange(grobs = list(g_data, g_fc, g_cor),
-#                         layout_matrix = cbind(c(1, 1), c(2, 3)),
-#                         widths = c(1, 1.5))
-cowplot::plot_grid(g_scheme, g_data, g_fc, g_cor)
+g <- cowplot::plot_grid(g_scheme, g_data, g_fc, g_cor)
+cowplot::save_plot("figs/bias.png", 
+                   plot = g, 
+                   base_width = 10, 
+                   base_height = 8, 
+                   dpi = 300,
+                   bg = "white")
+g
 ```
 
 ## Discusson
