@@ -142,8 +142,12 @@ Because temperature is a real-valued signal, the spectrum is Hermitian symmetric
 #| label: fig-proj
 #| message: false
 #| warning: false
+#| fig-width: 10
+#| fig-height: 8
 #| fig-cap: HOBO and weather station temperature decomposition and reprojection for different frequencies. We used a temperature serie from the 7th to the 12th of August 2023 for a HOBO (dark lines) in Mormal forest measuring air temperature in plot 59_58 and its associated ONF weather station (light lines) with raw data represented in upper left panel (data description below). Lower left panel represent the resulting HOBO power spectrum after Fourrier's decomposition, with a mean temperature of 16.24°C and frequency above 1/24h highlighted in blue ("trend") and frequency 1/24h and its harmonics highlighted in red ("day"). The resulting temperature projections for the highlighted frequencies are given in the upper right panel (trend in blue) and lower right panel (day in red). Dark lines represents HOBO microclimate data and projections while light lines represents weather station macroclimate data and projections.
-cols <- c("firebrick", "darkgrey",  "darkblue")
+Sys.setlocale("LC_TIME", "en_US.UTF-8") %>% 
+  invisible()
+cols <- c("darkblue", "firebrick", "darkgrey")
 data <- "data/data.tsv" %>% 
   read_tsv() %>% 
   filter(year(datetime) == 2023,
@@ -157,10 +161,10 @@ fc_h <- fft_tab(data$hobo, 24*6) %>%
          phase = Im(coefficient)) %>% 
   mutate(coeff_sup = ifelse(frequency > 1/(24+1), 0, 
                             complex(real = amplitude, imaginary = phase))) %>% 
-  mutate(type = ifelse(frequency > 1/(24+1), "other", "trend")) %>% 
+  mutate(type = ifelse(frequency > 1/(24+1), "other", "Overall trend")) %>% 
   mutate(coeff_day = ifelse(frequency  %in% c((1:12)/24),
                             complex(real = amplitude, imaginary = phase), 0)) %>% 
-  mutate(type = ifelse(frequency  %in% c((1:12)/24), "day", type)) 
+  mutate(type = ifelse(frequency  %in% c((1:12)/24), "Daily fluctuations", type)) 
 data$t_h_sup <- fft_reconstruct(fc_h$coeff_sup, fc_h$frequency[-1], 1:144)
 data$t_h_day <- fft_reconstruct(fc_h$coeff_day, fc_h$frequency[-1], 1:144)+fc_h$power[1]
 fc_o <- fft_tab(data$onf, 24*6) %>% 
@@ -168,49 +172,67 @@ fc_o <- fft_tab(data$onf, 24*6) %>%
          phase = Im(coefficient)) %>% 
   mutate(coeff_sup = ifelse(frequency > 1/(24+1), 0, 
                             complex(real = amplitude, imaginary = phase))) %>% 
-  mutate(type = ifelse(frequency > 1/(24+1), "other", "trend")) %>% 
+  mutate(type = ifelse(frequency > 1/(24+1), "other", "Overall trend")) %>% 
   mutate(coeff_day = ifelse(frequency  %in% c((1:12)/24),
                             complex(real = amplitude, imaginary = phase), 0)) %>% 
-  mutate(type = ifelse(frequency  %in% c((1:12)/24), "day", type)) 
+  mutate(type = ifelse(frequency  %in% c((1:12)/24), "Daily fluctuations", type)) 
 data$t_o_sup <- fft_reconstruct(fc_o$coeff_sup, fc_o$frequency[-1], 1:144)
 data$t_o_day <- fft_reconstruct(fc_o$coeff_day, fc_o$frequency[-1], 1:144)+fc_o$power[1]
 g_data <- ggplot(data, aes(x = datetime)) +
   geom_line(aes(y = era, col = "Macro")) +
   geom_line(aes(y = hobo, col = "Micro")) +
   theme_bw() +
+  theme(panel.grid = element_blank()) +
   scale_color_manual("", values = c(lighten("black", 0.5), "black")) +
-  xlab("") + ylab("Temperature [°C]") +
+  xlab("Time (day)") + ylab("Temperature [°C]") +
   ylim(8, 28) +
   theme(legend.position = c(0.3, 0.8), 
-        legend.background = element_blank())
+        legend.background = element_blank(),
+        axis.title = element_text(size = 14, face = "bold"),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12))
 g_fc <- fc_h %>% 
   filter(period != 0) %>% 
   ggplot(aes(frequency, power, fill = type)) +
   geom_col() +
   theme_bw() +
+  theme(panel.grid = element_blank()) +
   scale_x_continuous(
-    breaks = c(1/24, 1/12, 1/8, 1/6, 1/4),
-    labels = c("1/24", "2/24", "3/24", "4/24", "6/24")
+    breaks = c(1/(24*5), 1/24, 1/12, 1/8, 1/6),
+    labels = c("5d", "24", "12", "8", "6")
   ) +
-  scale_fill_manual("", values = cols) +
+  scale_fill_manual("", values = cols, breaks = c("Overall trend",
+                                                  "Daily fluctuations")) +
   theme(legend.position = c(0.8, 0.6)) + 
-  xlab("Frequency [hr]") + ylab("Power [°C]") +
-  theme(axis.text.x = element_text(angle = 45)) +
-  annotate("text", x=3/24, y=3, label = paste0("Mean:", round(fc_h$power[1],2)))
+  xlab("Period [hr]") + ylab("Power [°C]") +
+  theme(axis.text.x = element_text(angle = 0, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12)) +
+  annotate("text", x=3/24, y=3, 
+           label = paste0("Mean:", round(fc_h$power[1],2)), size = 5)
 g_sup <- ggplot(data, aes(datetime)) +
-  geom_line(aes(y = t_o_sup), col = lighten(cols[3], 0.5)) +
-  geom_line(aes(y = t_h_sup), col = cols[3]) +
+  geom_line(aes(y = t_o_sup), col = lighten(cols[1], 0.5)) +
+  geom_line(aes(y = t_h_sup), col = cols[1]) +
   theme_bw() +
-  xlab("") + ylab("") +
+  theme(panel.grid = element_blank()) +
+  xlab("Time (day)") + ylab("") +
   ylim(8, 28) +
-  annotate("text", x=data$datetime[24], y=25, label = "trend", col = cols[3])
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold")) +
+  annotate("text", x=data$datetime[40], y=25, 
+           label = "Overall trend", col = cols[1], size = 5.5, fontface = "bold")
 g_day <- ggplot(data, aes(datetime)) +
-  geom_line(aes(y = t_o_day), col = lighten(cols[1], 0.5)) +
-  geom_line(aes(y = t_h_day), col = cols[1]) +
+  geom_line(aes(y = t_o_day), col = lighten(cols[2], 0.5)) +
+  geom_line(aes(y = t_h_day), col = cols[2]) +
   theme_bw() +
-  xlab("") + ylab("") +
+  theme(panel.grid = element_blank()) +
+  xlab("Time (day)") + ylab("") +
   ylim(8, 28) +
-  annotate("text", x=data$datetime[24], y=25, label = "day", col = cols[1])
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold")) +
+  annotate("text", x=data$datetime[40], y=25, 
+           label = "Daily fluctuations", col = cols[2], size = 5.5, fontface = "bold")
 g <- gridExtra::grid.arrange(grobs = list(g_data, g_fc, g_sup, g_day),
                         layout_matrix = cbind(c(1, 2), c(3, 4)),
                         widths = c(1.5, 1))
@@ -231,6 +253,8 @@ cowplot::save_plot("figs/fourier.png",
 #| message: false
 #| warning: false
 #| fig-cap: "Caption."
+#| fig-width: 10
+#| fig-height: 8
 sites <- read_tsv("data/plots.tsv") %>% 
   group_by(site) %>% 
   summarise_all(mean) %>% 
@@ -241,20 +265,30 @@ stations <- readxl::read_xlsx("data/methor_data_onf/coord_stations_meteo_renecof
 france <- map_data("france")
 fr <- ggplot(france, aes(x = long, y = lat)) +
   tidyterra::geom_spatraster(data = rast("data/erafrance.nc"), alpha = .9) +
-  geom_point(data = sites, size = 2) +
-  ggrepel::geom_text_repel(data = sites, aes(label = site)) +
-  coord_sf() +
-  theme_void() +
+  geom_point(data = sites, size = 4, col = "black") +
+  ggrepel::geom_text_repel(data = sites, aes(label = site), size = 6, 
+                           color = "white", fontface = "bold",
+                           bg.color = "black", bg.r = 0.15, force = 3, 
+                           max.overlaps = Inf) +
+  coord_sf(expand = FALSE) +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  xlab("Longitude") + ylab("Latitude") +
   theme(
-    plot.background = element_rect(fill = "white", color = NA)
+    axis.text = element_text(size = 11),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.background = element_rect(fill = "white", color = NA),
+    aspect.ratio = 1
   ) +
   scico::scale_fill_scico(
       name     = "°C",
       palette  = "lajolla",
-      midpoint = 25,
-      limits   = c(12, 35),
       na.value = "white", direction = -1
-    )
+    ) +
+  theme(
+    legend.text = element_text(size = 11),
+    legend.title = element_text(size = 12, face = "bold")
+  )
 si <- read_tsv("data/plots.tsv") %>% 
   rename(plot = idplot) %>% 
   left_join(read_tsv("data/data.tsv") %>% 
@@ -272,7 +306,7 @@ si <- read_tsv("data/plots.tsv") %>%
     cx   <- (bbox["xmin"] + bbox["xmax"]) / 2
     cy   <- (bbox["ymin"] + bbox["ymax"]) / 2
     half_lat <- max((bbox["xmax"] - bbox["xmin"]) * lat_scale,
-                     bbox["ymax"] - bbox["ymin"]) / 2 + 0.05
+                     bbox["ymax"] - bbox["ymin"]) / 2 + 0.02
     sq_bbox <- c(xmin = cx - half_lat / lat_scale, xmax = cx + half_lat / lat_scale,
                  ymin = cy - half_lat, ymax = cy + half_lat)
     names(sq_bbox) <- c("xmin", "xmax", "ymin", "ymax")
@@ -280,27 +314,37 @@ si <- read_tsv("data/plots.tsv") %>%
     bg <- maptiles::get_tiles(sq_sfc, provider = "Esri.WorldImagery", zoom = 12)
     ggplot(points) +
     tidyterra::geom_spatraster_rgb(data = bg, alpha = .9) +
-    geom_sf(aes(fill = hobo), shape = 21, col = "black") +
+    geom_sf(aes(fill = hobo), shape = 21, col = "black", size = 4) +
     geom_text(data = filter(stations, site == unique(x$site)),
           aes(x = lon, y = lat),
-          label = "★", color = "white", size = 5) +
+          label = "★", color = "white", size = 6, fontface = "bold") +
+    annotate("text", x = Inf, y = Inf, label = unique(x$site), 
+             hjust = 1.1, vjust = 1.8, 
+             size = 6, color = "white", fontface = "bold",
+             bg.color = "black", bg.r = 0.15, force = 3) +
+    scale_x_continuous(breaks = scales::extended_breaks(n = 5), labels = function(x) paste0(format(x, nsmall = 1), "°E")) +
+    scale_y_continuous(breaks = scales::extended_breaks(n = 5), labels = function(x) paste0(format(x, nsmall = 1), "°N")) +
     coord_sf(
       xlim   = c(cx - half_lat / lat_scale, cx + half_lat / lat_scale),
       ylim   = c(cy - half_lat, cy + half_lat),
       expand = FALSE
     ) +
-    theme(axis.text.x = element_text(angle = 90, size = 5),
-          axis.text.y = element_text(size = 5)) +
-    theme(aspect.ratio = 1) +
     theme_bw() +
-    ggtitle(unique(x$site)) +
+    theme(
+      axis.text = element_text(size = 11),
+      axis.title = element_text(size = 12, face = "bold"),
+      aspect.ratio = 1,
+      panel.grid = element_blank()
+    ) +
     scico::scale_fill_scico(
-      guide  = "none",
       palette = "lajolla",
-      midpoint = 25,
-      limits = c(12, 35),
+      name     = "°C",
       na.value = "darkgrey", direction = -1
-    ) + xlab("") + ylab("")
+    ) + xlab("Longitude") + ylab("Latitude") +
+  theme(
+    legend.text = element_text(size = 11),
+    legend.title = element_text(size = 12, face = "bold")
+  )
   })
 g <- cowplot::plot_grid(plotlist = c(fr, si))
 cowplot::save_plot("figs/sites.png", 
@@ -320,6 +364,8 @@ We decomposed all the temperature series for ERA5-Land and HOBOs in May to Septe
 #| label: fig-ps
 #| message: false
 #| warning: false
+#| fig-width: 10
+#| fig-height: 8
 #| fig-cap: Power spectrum for air and soil temperatures, using HOBO microclimate temperatures and ERA5-Land and ONF macroclimate temperatures, for the locations of Aigoual, Blois and Mormal
 t <- "data/decomposition.tsv" %>% 
   read_tsv() %>% 
@@ -338,17 +384,21 @@ g <- t %>%
   geom_col(fill = "darkgrey") +
   geom_linerange(aes(ymin = power-sd, ymax = power+sd)) +
   theme_bw() +
-  xlab("Period [h]") +
-  ylab("Power") +
+  theme(panel.grid = element_blank()) +
+  xlab("Period [hr]") +
+  ylab("Power [°C]") +
   scale_x_continuous(
     breaks = c(1/120*2, 1 / 24*2, 1 / 12*2, 1 / 8*2, 1 / 6*2, 1 / 3*2),
     labels = c("5d", "24", "12", "8", "6", "3")
   ) +
-  theme(legend.position.inside = c(0.8, 0.8)) +
+  theme(legend.position.inside = c(0.8, 0.8),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        strip.text = element_text(size = 12, face = "bold")) +
   facet_grid(site ~ paste0(type, "\n", source)) +
   geom_text(x = 1/3, y = 6,
             aes(label = paste0("Mean: ", round(power), "±", round(sd))), 
-            data = filter(t, period ==0))
+            data = filter(t, period ==0), size = 5)
 cowplot::save_plot("figs/buffer.png", 
                    plot = g, 
                    base_width = 10, 
@@ -364,6 +414,8 @@ We then computed the microclimate buffers as ratios of mean temperature and powe
 #| label: fig-ratios
 #| message: false
 #| warning: false
+#| fig-width: 10
+#| fig-height: 8
 #| fig-cap: Mean temperature vs. 24-h amplitude ratios of HOBO microclimate sensors against ONF weather station for air and soil sensors at Aigoual, Blois and Mormal forests. The point represents the median, the thick line the 50 percent distribution and the thine line the 90 percent distribution.
 g <- read_tsv("data/decomposition.tsv") %>% 
   filter(source != "era") %>% 
@@ -393,10 +445,14 @@ g <- read_tsv("data/decomposition.tsv") %>%
   geom_segment(aes(y = period_12_q05, yend = period_12_q95), linewidth = .2) +
   geom_point() +
   theme_bw() +
-  ggrepel::geom_text_repel(aes(label = site), col = "black") +
+  theme(panel.grid = element_blank()) +
+  ggrepel::geom_text_repel(aes(label = site), col = "black", size = 4.5) +
   scale_color_manual("", values = c("#a9d9e5", "#c89867")) +
-  xlab("Mean temperature ratio") +
-  ylab("24-h amplitude ratio")
+  xlab("Mean temperature ratio [°C]") +
+  ylab("24-h amplitude ratio [°C]") +
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12))
 cowplot::save_plot("figs/buffer2.png", 
                    plot = g, 
                    base_width = 10, 
@@ -415,6 +471,8 @@ g
 #| message: false
 #| warning: false
 #| fig-cap: Caption.
+#| fig-width: 10
+#| fig-height: 8
 cols <- c("#0F6E56", "#BA7517")
 data <- "data/data.tsv" %>% 
   read_tsv() %>% 
@@ -428,11 +486,15 @@ g_data <- ggplot(data, aes(x = datetime)) +
   geom_line(aes(y = era, col = "ERA5-Land")) +
   geom_line(aes(y = onf, col = "ONF")) +
   theme_bw() +
+  theme(panel.grid = element_blank()) +
   scale_color_manual("", values = cols) +
   xlab("") + ylab("Temperature [°C]") +
   ylim(8, 28) +
   theme(legend.position = c(0.3, 0.8), 
-        legend.background = element_blank())
+        legend.background = element_blank(),
+        axis.title = element_text(size = 14, face = "bold"),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12))
 fc_e <- fft_tab(data$era, 24*6) %>% 
   mutate(amplitude = Re(coefficient),
          phase = Im(coefficient))
@@ -445,17 +507,21 @@ g_fc <- list(era = fc_e, onf = fc_o) %>%
   ggplot(aes(frequency, power, fill = origin)) +
   geom_col(position = "dodge") +
   theme_bw() +
+  theme(panel.grid = element_blank()) +
   scale_x_continuous(
-    breaks = c(1/24, 1/12, 1/8, 1/6, 1/4),
-    labels = c("1/24", "2/24", "3/24", "4/24", "6/24")
+    breaks = c(1/(24*5), 1/24, 1/12, 1/8, 1/6),
+    labels = c("5d", "24", "12", "8", "6")
   ) +
-  theme(legend.position = c(0.8, 0.6)) + 
-  xlab("Frequency [hr]") + ylab("Power [°C]") +
-  theme(axis.text.x = element_text(angle = 45)) +
+  theme(legend.position = c(0.8, 0.6),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12)) + 
+  xlab("Period [hr]") + ylab("Power [°C]") +
   scale_fill_manual(guide = "none", values = cols) +
   annotate("text", x=5/24, y=3, 
            label = paste0("Mean:", round(fc_e$power[1],2), " vs. ",
-                          round(fc_o$power[1],2)))
+                          round(fc_o$power[1],2)), size = 5)
 g_cor <- list(era = fc_e, onf = fc_o) %>%
   bind_rows(.id = "origin") %>% 
    select(origin, frequency, period, amplitude) %>% 
@@ -465,14 +531,18 @@ g_cor <- list(era = fc_e, onf = fc_o) %>%
    geom_smooth(method = "lm", se = FALSE) +
    geom_point() +
    theme_bw() +
+   theme(panel.grid = element_blank()) +
    scale_x_continuous(
-    breaks = c(1/24, 1/12, 1/8, 1/6, 1/4),
-    labels = c("1/24", "2/24", "3/24", "4/24", "6/24")
-  ) + scale_y_log10() +
-   xlab("Frequency [h]") +
+    breaks = c(1/(24*5), 1/24, 1/12, 1/8, 1/6),
+    labels = c("5d", "24", "12", "8", "6")
+   ) +
+  scale_y_log10() +
+   xlab("Period [hr]") +
    ylab("Ratio ONF vs. ERA5-Land") +
-  theme(axis.text.x = element_text(angle = 45))
-svg_raster <- rsvg::rsvg_nativeraster("data/debiasing_scheme.svg")
+  theme(axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"))
+svg_raster <- rsvg::rsvg_nativeraster("data/debiasing_scheme_v2.svg")
 g_scheme   <- grid::rasterGrob(svg_raster, interpolate = TRUE)
 g <- cowplot::plot_grid(g_scheme, g_data, g_fc, g_cor)
 cowplot::save_plot("figs/bias.png", 
@@ -514,11 +584,16 @@ buffers %>%
   geom_violin() +
   facet_grid(source ~ site, scales = "free_x") +
   theme_bw() +
+  theme(panel.grid = element_blank()) +
   geom_hline(yintercept = 1) +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
-        axis.ticks.x = element_blank()) +
-  ylab("Amplitude ratio for the period 24-hr") +
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_text(size = 12),
+        axis.title.y = element_text(size = 14, face = "bold"),
+        strip.text = element_text(size = 12, face = "bold"),
+        legend.text = element_text(size = 12)) +
+  ylab("Amplitude ratio for the period 24-hr [°C]") +
   scale_y_sqrt() +
   scale_fill_manual("", values = c("#a9d9e5", "#c89867")) +
   scale_color_manual("", values = c("#a9d9e5", "#c89867"))
@@ -542,13 +617,19 @@ buffers %>%
   ggplot(aes(pai, ratio, col = site)) +
   geom_point() +
   theme_bw() +
+  theme(panel.grid = element_blank()) +
   geom_smooth(method = "lm") +
   ggpubr::stat_regline_equation(
     aes(label =  paste(..eq.label.., ..adj.rr.label.., sep = "~~~~")),
+    size = 4.5
   ) +
-  theme(legend.position = "bottom") +
-  xlab("Plant Area Index") +
-  ylab("Mean Amplitude ratio for period 24-hr") +
+  theme(legend.position = "bottom",
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 12, face = "bold")) +
+  xlab("Plant Area Index [m2/m2]") +
+  ylab("Mean Amplitude ratio for period 24-hr [°C]") +
   scale_color_discrete("") +
   facet_grid(position ~ source)
 ```

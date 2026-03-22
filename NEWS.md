@@ -1,3 +1,4 @@
+-   imprint 0.1.0.9009: Improved figures
 -   imprint 0.1.0.9008: Debias section
 -   imprint 0.1.0.9007: Article restructuration
 -   imprint 0.1.0.9006: Jonathan's suggestions
