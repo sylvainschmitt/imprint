@@ -7,6 +7,10 @@ format:
     embed-resources: true
     toc: true
     code-fold: true
+  docx:
+    embed-resources: true
+    toc: true
+    code-fold: true
 bibliography: references.bib
 ---
 
@@ -220,7 +224,7 @@ g_sup <- ggplot(data, aes(datetime)) +
   ylim(8, 28) +
   theme(axis.text = element_text(size = 12),
         axis.title = element_text(size = 14, face = "bold")) +
-  annotate("text", x=data$datetime[40], y=25, 
+  annotate("text", x=data$datetime[10], y=25, hjust = 0,
            label = "Overall trend", col = cols[1], size = 5.5, fontface = "bold")
 g_day <- ggplot(data, aes(datetime)) +
   geom_line(aes(y = t_o_day), col = lighten(cols[2], 0.5)) +
@@ -231,17 +235,17 @@ g_day <- ggplot(data, aes(datetime)) +
   ylim(8, 28) +
   theme(axis.text = element_text(size = 12),
         axis.title = element_text(size = 14, face = "bold")) +
-  annotate("text", x=data$datetime[40], y=25, 
+  annotate("text", x=data$datetime[10], y=25, hjust = 0,
            label = "Daily fluctuations", col = cols[2], size = 5.5, fontface = "bold")
-g <- gridExtra::grid.arrange(grobs = list(g_data, g_fc, g_sup, g_day),
-                        layout_matrix = cbind(c(1, 2), c(3, 4)),
-                        widths = c(1.5, 1))
+g <- cowplot::plot_grid(g_data, g_sup, g_fc, g_day, 
+                        rel_widths = c(1.5, 1), align = "v")
 cowplot::save_plot("figs/fourier.png", 
                    plot = g, 
                    base_width = 10, 
                    base_height = 8, 
                    dpi = 300,
                    bg = "white")
+g
 ```
 
 ## Study sites and data
@@ -346,7 +350,7 @@ si <- read_tsv("data/plots.tsv") %>%
     legend.title = element_text(size = 12, face = "bold")
   )
   })
-g <- cowplot::plot_grid(plotlist = c(fr, si))
+g <- cowplot::plot_grid(plotlist = c(fr, si), align = "hv")
 cowplot::save_plot("figs/sites.png", 
                    plot = g, 
                    base_width = 10, 
