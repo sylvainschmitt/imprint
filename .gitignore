@@ -8,5 +8,6 @@
 !README.qmd
 !README.md
 !data
-!fig1.png
-.Rproj.user
+!mee.csl
+!LICENSE
+!renv.lock

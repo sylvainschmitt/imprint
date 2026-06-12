@@ -1,8 +1,13 @@
 # IMRPINT
 Sylvain Schmitt
-Dec 2, 2025
+Jun 12, 2026
+
+<div>
 
 [![](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+
+</div>
+
 The general idea is to test the development of
 [`microclimr`](https://github.com/sylvainschmitt/microclimr) by
 reproducing analyses of the IMRPINT project on the forest microclimate
@@ -18,7 +23,7 @@ be run with R and associated environment defined with [renv](#0).
 **imprint** includes:
 
 - Analyse of the data with associated documentation and figures:
-  - Reproductive analyses in ``` index``.qmd ```
+  - Reproductive analyses in `index.qmd`
   - Resulting page in `index.html`
 - All data in `data/`
 - R environment definition with
