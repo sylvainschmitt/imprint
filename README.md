@@ -1,6 +1,6 @@
-# IMRPINT
+# Fourier
 Sylvain Schmitt
-Jun 12, 2026
+Jul 17, 2026
 
 <div>
 
@@ -15,12 +15,12 @@ from the Mormal, Blois and Aigoual forests.
 
 ## Usage
 
-**imprint** analyses rely on the quarto documents `index.qmd` that can
+**fourier** analyses rely on the quarto documents `index.qmd` that can
 be run with R and associated environment defined with [renv](#0).
 
 ## Project
 
-**imprint** includes:
+**fourier** includes:
 
 - Analyse of the data with associated documentation and figures:
   - Reproductive analyses in `index.qmd`

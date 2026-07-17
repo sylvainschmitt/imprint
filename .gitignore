@@ -1,6 +1,6 @@
 *
 !.gitignore
-!imprint.Rproj
+!fourier.Rproj
 !index.qmd
 !index.html
 !references.bib

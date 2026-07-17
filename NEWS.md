@@ -1,3 +1,4 @@
+-   imprint 0.1.0.9012: Updated with microclimr update
 -   imprint 0.1.0.9011: Jonathan's intro
 -   imprint 0.1.0.9010: Improved figures 2 - alignments
 -   imprint 0.1.0.9009: Improved figures
