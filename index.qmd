@@ -132,7 +132,17 @@ Aim: *Methods in Ecology and Evolution.*
 
 ## Abstract
 
-*Abstract.*
+1.  Quantifying how forest canopies buffer microclimatic temperature fluctuations is central to understanding biodiversity responses to climate change, but existing metrics (offset, slope-equilibrium) capture buffering at a single, pre-defined timescale and cannot separate daily, seasonal and interannual signals within the same temperature time series.
+
+2.  We introduce the Discrete Fourier Transform (DFT) as a tool for microclimate ecology, decomposing paired microclimate–macroclimate temperature time series into their constituent harmonics (amplitude and phase per frequency) so that buffering can be quantified independently across timescales. We illustrate the approach with two case studies using air and soil temperature records from three French forests (Aigoual, Blois, Mormal), paired with weather-station and ERA5-Land reanalysis reference data.
+
+3.  In the first case study, spectral decomposition isolated the dominant 24-hour cycle and showed that forest canopies buffered daily air-temperature fluctuations by 75.9–90.3% across sites, with soil buffering mean temperature more strongly than air; in the second, the same framework was used to debias ERA5-Land reanalysis data against a local weather station by comparing power spectra across frequencies, correcting both mean-temperature overestimation and underestimation of short-term variability.
+
+4.  By resolving buffering across multiple timescales within a single, noise-robust framework and enabling principled debiasing of macroclimate reference products, the Fourier Transform offers a versatile addition to the microclimate ecologist's toolkit, complementing rather than replacing existing offset and slope-equilibrium approaches, with an accompanying open-source R package to support wider adoption.
+
+### Keywords
+
+microclimate buffering; Fourier transform; forest canopy; temperature time series; macroclimate debiasing; ERA5-Land; power spectrum
 
 ## Introduction
 
@@ -726,34 +736,41 @@ cowplot::save_plot("figs/bias.png",
 g
 ```
 
-## Discussion plan
+## Discussion
 
-- Buffer value analyses
+Here, we show that the Discrete Fourier Transform offers a powerful and largely untapped tool for microclimate ecology and biogeography, extending beyond the offset and slope-equilibrium approaches traditionally used to quantify canopy buffering. By decomposing temperature time series into their constituent frequencies, the Fourier Transform captures buffering dynamics across multiple timescales simultaneously, is inherently robust to sensor noise, and yields a novel, physically grounded metric of buffering intensity based on power spectrum variance decomposition. Beyond microclimate buffering itself, we further demonstrate that the same framework can be used to debias macroclimate reference products against local observations. Together, these results position the Fourier Transform as a versatile and complementary, rather than competing, addition to the microclimate ecologist's toolkit.
 
-  - The multi-temporal variation of the buffers in more detail with several periods and frequencies for buffers
-  - Robustness of the FFT to measurement noise: leveraging the averaging nature of Fourier coefficients to handle sensor dropouts and local measurement errors
-  - Parseval's theorem as a diagnostic tool: using power spectrum variance decomposition to quantify the proportion of climatic variability buffered by forest canopies
+### **Microclimate buffer amplitude analyses**
 
-- Buffer dephasing
+Using spectral decomposition of temperature time series via the Discrete Fourier Transform, we were able to extend previous analyses of microclimate buffering beyond the offset approach [@deFreitas1995] or the slope-equilibrium approach [@gril2023]. Specifically, the Fourier Transform allowed: (i) a finer analysis of multi-temporal variation in buffering, capturing several periods and frequencies simultaneously; (ii) a more robust methodology for dealing with measurement and sensor noise; and (iii) a new metric, based on power spectrum variance decomposition, to quantify the proportion of climatic variability buffered by forest canopies.
 
-  - Integrate dephasing for buffers
-  - Phase shift analysis: interpreting temporal offsets between macroclimate and microclimate signals as indicators of thermal inertia and canopy lag
+Indeed, the offset [@deFreitas1995] and slope-equilibrium [@gril2023] approaches both require defining the timescale(s) to work with beforehand. Previous studies have worked with hourly [@gril2024], daily [@defrenne2019], monthly [@hes2025], seasonal or yearly [@gril2025] statistics, and have rarely combined more than two timescales [@hes2025] or operated at sub-daily resolution [but see @pinheiro2011]. We believe that the Fourier Transform allows a finer analysis integrating all these timescales and others within a single approach, depending on how the sliding time window of the analysis is constructed (discussed below). Moreover, the Fourier Transform is not in opposition to the offset and slope-equilibrium approaches: once the power spectrum is built for each frequency/period, the microclimate buffer still needs to be computed, for instance using an offset as we did in study case 1 (@fig-ratios), though other approaches could be considered.
 
-- Debiasing
+In addition, the offset and slope-equilibrium approaches are more sensitive to outliers arising from sensor malfunction, often requiring a preliminary data-cleaning stage to remove such artefacts. For instance, [@hes2025] discarded points falling more than five standard deviations from the mean over a monthly rolling window. In the time series shown in Figure 1, such noise is clearly visible at the start of August 9th, where a malfunctioning microclimate sensor produces a temperature drop relative to the macroclimate signal. Interestingly, this artefact is not captured in either the overall trend or the daily fluctuations, since such small-scale variations are only reflected in the high-frequency (low-period) component of the signal making the Fourier Transform robust to this type of noise not visible in the lower-frequency (higher-period) components used in subsequent analyses.
 
-  - multitemporal scale advantage of debiasing
+Last but not least, based on Parseval's Theorem, the Fourier Transform provides a further metric: by decomposing the variance of the power spectrum, one can compute the total "energy" of the microclimate signal relative to the macroclimate signal. In our case, an energy ratio of 86% indicates that the forest microclimate dissipates part of the variation present in the macroclimate.
 
-- Limits?
+### **The advantages of Fourier for dephasing and debiasing**
 
-  - Scalability to other forest types and climates: evaluating whether the Fourier debiasing framework generalises beyond the three French study sites (Aigoual, Blois, Mormal) - kind of obvious I think?
-  - Limitations of the sliding-window approach: trade-offs between window length, frequency resolution, and sensitivity to transient weather events
+Beyond the extraction of multi-frequency amplitudes from temperature time series, the Fourier Transform also allows the extraction of signal phases, providing a better account of dephasing between signals across timescales. For instance, depending on the temporal resolution considered, soil temperature changes lag behind air temperature at short timescales owing to differences in thermal properties between media [@yin2024]. In such cases, the offset and slope-equilibrium approaches introduce statistical noise, since the temperature measurements are no longer correctly time-matched: part of the variation around the offset, and around the slope-equilibrium regression, then reflects this time lag rather than microclimate buffering itself. By explicitly accounting for dephasing, the Fourier Transform resolves this issue (results not shown). We did not focus on the phase component of the decomposition here, but future studies could exploit it for phase-shift analysis, interpreting temporal offsets between macroclimate and microclimate signals as indicators of thermal inertia and canopy lag [e.g. @bush2016].
 
-- Future direction
+We first applied the Fourier Transform to microclimate assessment, as shown in study case 1. A further, less commonly discussed problem in microclimatology, and in applied climatology more broadly, is how to obtain a robust reference macroclimate product against which to estimate microclimate buffering. For instance, [@hes2025] corrected ERA5-Land reanalysis products in French Guiana against local MétéoFrance weather stations using a mean-and-variance correction, requiring separate corrections for each temporal frequency considered (hourly and monthly). We believe the Fourier Transform offers a clear advantage here for debiasing global macroclimate products against local data, as demonstrated in study case 2: it provides a fast, simple correction that remains robust across multiple timescales simultaneously. This approach is already used in several other domains: for example to correct CMIP6 simulations in climatology [@kusumastuti2022], to improve downscaling [@utami2024], or in hydrology [@kendall2007], and we encourage its wider adoption in ecology and biogeography.
 
-  - Harmonic hierarchy: discussing how higher-order harmonics (sub-daily cycles) reveal fine-scale buffering mechanisms beyond the dominant 24-hour period
-  - Seasonal non-stationarity: addressing how buffer ratios evolve across the leaf-on/leaf-off transition and whether a sliding-window approach adequately captures this
-  - Comparison with alternative downscaling methods: benchmarking the Fourier debiasing against delta-method or quantile-mapping approaches used in macroclimate bias correction
-  - microclimr and microclimapp development
+### **Limitations**
+
+Like any approach, the Fourier Transform has limitations. Compared to the offset [@deFreitas1995] or slope-equilibrium [@gril2023] approaches, which are increasingly adopted across a wide range of ecosystems and contexts, our approach still requires testing for scalability to other forest types and climates, in order to evaluate whether the Fourier Transform approach generalises beyond our three French study sites (Aigoual, Blois, Mormal). Methodologically, there is no specific reason for the Fourier Transform to be restricted to these cases, though this remains to be demonstrated; work in progress already suggests its suitability for tropical forests (Schmitt et al., in prep). A further limitation, not intrinsic to the Fourier Transform itself but to how we applied it, concerns the definition of the sliding window used in the analysis. Clear trade-offs exist between window length, frequency resolution, and sensitivity to transient weather events, and these warrant further investigation in microclimate ecology and biogeography, even though they have already been extensively studied in applied mathematics [e.g. @richardson2018].
+
+### **Perspectives**
+
+Given these limited limitations, we believe the Fourier Transform approach nonetheless holds strong potential for microclimate ecology and biogeography. Future directions include: (i) further exploration of higher-order harmonics and harmonic hierarchies; (ii) benchmarking the Fourier Transform against alternative downscaling methods; and (iii) making the method accessible through open-source tools.
+
+Higher-order harmonics such as sub-daily cycles and harmonic hierarchies can reveal fine-scale buffering mechanisms beyond the dominant 24-hour period, such as stomatal dynamics identified from latent and sensible heat fluxes in an Amazonian forest [@pinheiro2011], and thus deserve further exploration. Similarly, while we focused here on macroclimate debiasing using a simple mean-and-variance correction for comparison [@hes2025], more advanced techniques exist, including quantile mapping [@cannon2015] or machine learning [@coulibaly2005] calling for a systematic benchmarking of Fourier Transform debiasing against these alternatives.
+
+Finally, we believe that wider adoption of the Fourier Transform approach in microclimate ecology and biogeography will require making the method accessible through open-source tools, such as an R package, a format increasingly favoured by ecologists [@lai2019]. This is a work in progress, with the active development of the R package *microclimr* and its associated application *microclimapp* (Schmitt et al., in prep), which also underlies the analyses presented in this paper (see Data availability).
+
+### **Conclusion**
+
+Taken together, our results show that the Fourier Transform is not merely an alternative to existing offset and slope-equilibrium approaches, but a methodological advance for microclimate ecology and biogeography. By resolving buffering across multiple timescales within a single, noise-robust framework, and by opening a path towards principled macroclimate debiasing, spectral decomposition addresses several limitations of current methods while remaining fully compatible with them. As microclimate data continues to be collected by sensor networks around the world, we believe that spectral approaches, such as the one presented here, and their future implementation in accessible, open-source tools, will become an increasingly valuable part of a microclimate ecologist's toolkit.
 
 ## References
 

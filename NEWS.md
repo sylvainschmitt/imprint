@@ -1,12 +1,13 @@
--   imprint 0.1.0.9012: Updated with microclimr update
--   imprint 0.1.0.9011: Jonathan's intro
--   imprint 0.1.0.9010: Improved figures 2 - alignments
--   imprint 0.1.0.9009: Improved figures
--   imprint 0.1.0.9008: Debias section
--   imprint 0.1.0.9007: Article restructuration
--   imprint 0.1.0.9006: Jonathan's suggestions
--   imprint 0.1.0.9005: 24-h vs. mean fig and freq-proj fig
--   imprint 0.1.0.9004: post meeting train review 1/18
--   imprint 0.1.0.9003: Jonathan's review 1/12
--   imprint 0.1.0.9002: onf data
+-   fourier 0.1.0.9013: First draft of discussion & abstract
+-   fourier 0.1.0.9012: Updated with microclimr update
+-   fourier 0.1.0.9011: Jonathan's intro
+-   fourier 0.1.0.9010: Improved figures 2 - alignments
+-   fourier 0.1.0.9009: Improved figures
+-   fourier 0.1.0.9008: Debias section
+-   fourier 0.1.0.9007: Article restructuration
+-   fourier 0.1.0.9006: Jonathan's suggestions
+-   fourier 0.1.0.9005: 24-h vs. mean fig and freq-proj fig
+-   fourier 0.1.0.9004: post meeting train review 1/18
+-   fourier 0.1.0.9003: Jonathan's review 1/12
+-   fourier 0.1.0.9002: onf data
 -   imprint 0.1.0.9001: clean init
