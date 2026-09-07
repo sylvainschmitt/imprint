@@ -1,3 +1,4 @@
+-   fourier 0.1.0.9014: Supplementary note qmd from Erwan's tex
 -   fourier 0.1.0.9013: First draft of discussion & abstract
 -   fourier 0.1.0.9012: Updated with microclimr update
 -   fourier 0.1.0.9011: Jonathan's intro

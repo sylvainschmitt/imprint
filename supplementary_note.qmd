@@ -1,0 +1,148 @@
+---
+author:
+- Sylvain Schmitt, Erwan Hingant, Jonathan Lenoir
+title: Supplementary Note
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    cache: true
+  pdf: default
+  docx: default
+bibliography: references.bib
+csl: mee.csl
+---
+
+# Fourier series {#sec:fourier_series}
+
+Time series, particularly those containing periodic signals such as
+temperature records, can be analysed using Fourier analysis and, for
+sampled signals, the discrete Fourier transform (DFT). The DFT, based on
+the work of Joseph Fourier, is widely used to analyse signals in the
+frequency domain; see, for example, [@marksii2009].
+
+Fourier analysis is a set of theoretical and computational tools, the
+most elementary of which is the Fourier-series decomposition described
+below. A simple periodic function such as
+$A \cos(\frac{2\pi}{T}t+\varphi)$ is characterised by: (1) the period
+$T$, or the frequency $f=1/T$, sometimes multiplied by $2\pi$ so that
+$\omega =2\pi f=2\pi /T$ is called the angular frequency; (2) the
+amplitude $A$, so that the function ranges from its minimum value $-A$
+to its maximum value $A$; and (3) the phase $\varphi$ which depends on
+the value at the reference time $0$. The latter corresponds to a simple
+time shift of amount $s= -\tfrac{\varphi}{2\pi f}$ so that
+$\cos(\tfrac{2\pi}{T} t + \varphi)= \cos (\tfrac{2\pi}{T}(t-s))$. The
+function has mean $0$; thus, a generic $T$-periodic signal would be of
+the form $A_{0} + A_{1} \cos(\tfrac{2\pi}{T} t+\varphi)$ where $A_0$ is
+the mean and $A_1$ is the amplitude.
+
+More generally, a $T$-periodic function $S(t)$ can, under mild
+regularity assumptions almost always true in practise, be decomposed
+according to Fourier's theorem. Any $T$-periodic function can be
+decomposed as an infinite sum of simple trigonometric functions whose
+frequencies are multiples of the fundamental frequency $f=1/T$, called
+harmonics or modes, namely:
+
+$$
+S(t) = A_{0} + A_{1} \cos(2\pi f t+\varphi_{1}) + A_{2} \cos(4\pi f t+\varphi_{2}) + A_{3} \cos(6 \pi f t+\varphi_{3}) + \ldots
+$$ {#eq-series}
+
+Moreover, the amplitudes $A_j$ tend to $0$ for large $j$ so that most of
+the signal information can be approximated by summing only a finite
+number of harmonics. The coefficients $A_0,A_1,A_2,\ldots$ and the
+associated phases $\varphi_1,\varphi_2,\varphi_3,\ldots$ constitute the
+spectral decomposition of $S$ and the pair $(A_j,\varphi_j)$ associated
+with the frequency $f_j=j/T$ gives the amplitude and phase of the
+frequency $f_j$.
+
+One strength of the method is that the coefficients are not local
+quantities; instead, they summarise the entire signal through
+integration. The Fourier coefficients are
+$$
+a_j = \frac{2}{T} \int_0^T S(t) \cos(2\pi j f t) dt
+$$ {#eq-2}
+and
+$$
+b_j = \frac{2}{T} \int_0^T S(t) \sin(2\pi j f t) dt
+$$ {#eq-3}
+for $j\geq 1$
+and $a_0=\frac 1 T \int_0^T S(t) dt$. Conventionally, $b_0=0$. Then, the
+amplitudes are $$A_j =  \sqrt{a_j^2+b_j^2}$$ With the sign convention in
+@eq-series, the phase is the complex argument
+$\varphi_j=\arg(a_j-ib_j)$.
+
+Thus, there is a one-to-one correspondence between a periodic signal
+$S(t)$ and its spectral decomposition, meaning that the decomposition
+can be computed from the signal and the signal can be reconstructed (or
+approximated) from the $(A_j,\varphi_j)$ using @eq-series.
+
+# Power and amplitude spectra
+
+The squared amplitude $A_j^2$ is called the power of the signal
+associated with the frequency $f_j$. Parseval's theorem relates the
+variance of the signal $S(t)$ to the sum of the powers, namely
+$$
+\frac{1}{T} \int_0^T |S(t)-A_0|^2 dt = \frac 1 2 \sum_{j=1}^{\infty} A_j^2.
+$$ {#eq-4}
+Here $A_0=\frac 1 T \int_0^T S(t) dt$ is the mean of the signal.
+
+The so-called power spectrum, maps each frequency $f_j$ (or simply $j$)
+to its squared amplitude $A_j^2$. Dividing by $\sum_{k\geq1}A_k^2$ gives
+the fraction of variance attributable to that harmonic. The power
+spectrum is a very useful tool to analyse periodic signals, as it allows
+us to identify the main frequencies of the signal (the largest $A_j^2$).
+It helps to determine which components contribute to the variance. An
+analogy with principal component analysis (PCA) might be drawn, where
+the first components (axes and eigenvalues) contain most of the
+information. Alternatively, we can represent $A_j$ instead of $A_j^2$
+which gives the amplitude spectrum, expressed here in degrees.
+
+# Discrete Fourier Transform
+
+In practice, we treat a finite record of a signal $S$ over a duration
+$T$ ranging from hours to centuries or more. The DFT represents the
+observations as one period $T$ (with fundamental frequency $f=1/T$) of a
+hypothetically repeated sequence that forms a *theoretical* $T$-periodic
+signal.
+
+Let $S_0,\ldots,S_{N-1}$ denote signal values sampled at times
+$t_0,\ldots,t_{N-1}$. The $N$ samples are assumed to be obtained at
+regular time intervals $\Delta t$. The DFT computes approximations of
+the Fourier coefficients by
+
+$$
+a_j \simeq \frac{2}{N} \sum_{n=0}^{N-1} S_n \cos(2\pi f_j t_n)
+$$ {#eq-5}
+and
+$$
+b_j \simeq \frac{2}{N} \sum_{n=0}^{N-1} S_n \sin(2\pi f_j t_n)
+$$ {#eq-6}
+for
+$j\geq 1$ and $a_0 = \frac{1}{N} \sum_{n=0}^{N-1} S_n$. These are
+discrete approximations of the integrals defined in Sec.
+[1](#sec:fourier_series){reference-type="ref"
+reference="sec:fourier_series"}. These approximations of $a_j$ and $b_j$
+yield approximations of $A_j$ and $\varphi_j$, thereby producing an
+approximation $S_{\mathrm DFT}(t)$ by @eq-series of the signal $S$. This approximation is exact at
+the sampled times ($S_{\mathrm DFT}(t_n)=S_n$).
+
+# Additional comments
+
+We have omitted a number of limitations inherent to the method that
+require attention in applications. Among them we may cite three of
+particular importance for microclimate studies:
+
+- The method inherently require regular sampled time and cannot treat
+  missing values. A pre-processing and interpolation of the missing
+  value is necessary.
+
+- We have not developed here the analysis of phase, or time delay, which
+  is important information when comparing two signals. Its
+  interpretation needs caution because the phase is not uniquely
+  defined, but only modulo $2\pi$.
+
+- The truncation of the signal to a window of length $T$ may produce
+  spurious information in the spectrum if the signal values at the two
+  ends of the window do not match. Various methods called *windowing*
+  can reduce this spectral leakage.
