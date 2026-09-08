@@ -1,6 +1,6 @@
 ---
 title: "Using Fourier's transform to model forest microclimates by playing the partition of temperature harmonics"
-author: "Sylvain Schmitt (F&S, CIRAD), Erwan Hingant (LAMFA, UPJV), Jonathan Lenoir (EDYSAN, CNRS)"
+author: "Sylvain Schmitt (1,2), Erwan Hingant (3), Jonathan Lenoir (4)"
 date: last-modified
 format: 
   html:
@@ -128,7 +128,16 @@ fc <- data %>%
 write_tsv(fc, "data/decomposition.tsv")
 ```
 
-Aim: *Methods in Ecology and Evolution.*
+**Aim**: *Methods in Ecology and Evolution.*
+
+**Cover letter**: [link](https://sylvainschmitt.github.io/fourier/cover_letter.html)
+
+## Affiliations
+
+1 - CIRAD, UPR Forêts et Sociétés, F-34398 Montpellier, France\
+2 - Forêts et Sociétés, Univ Montpellier, CIRAD, Montpellier, France\
+3 - UMR CNRS 7352 "Laboratoire Amiénois de Mathématique Fondamentale et Appliquée" (LAMFA), Université de Picardie Jules Verne, 33 rue St-Leu, 80000 Amiens, France\
+4 - UMR CNRS 7058 “Ecologie et Dynamique des Systèmes Anthropisés” (EDYSAN), Université de Picardie Jules Verne, 1 rue des Louvels, 80000 Amiens, France
 
 ## Abstract
 
@@ -640,63 +649,6 @@ cowplot::save_plot("figs/buffer2.png",
 g
 ```
 
-```{r}
-g <- read_tsv("data/decomposition.tsv") %>%
-  filter(source != "era") %>%
-  filter(period %in% c(0, 12)) %>%
-  select(-amplitude, -phase, -frequency) %>%
-  pivot_wider(names_from = source, values_from = power) %>%
-  na.omit() %>%
-  mutate(ratio = hobo / onf) %>%
-  select(-hobo, -onf) %>%
-  mutate(period = paste0("period_", period)) %>%
-  group_by(position, site, plot, period) %>%
-  summarise(
-    q05 = quantile(ratio, .05),
-    q25 = quantile(ratio, .25),
-    q5 = quantile(ratio, .5),
-    q75 = quantile(ratio, .75),
-    q95 = quantile(ratio, .95)
-  ) %>%
-  gather(metric, value, -position, -site, -plot, -period) %>%
-  mutate(period_metric = paste0(period, "_", metric)) %>%
-  select(-period, -metric) %>%
-  pivot_wider(names_from = period_metric, values_from = value) |> 
-  filter( position == "air") |> 
-  ggplot(aes(period_0_q5, period_12_q5, col = site)) +
-  ggimage::geom_image(data = tibble(period_0_q5 = 1.3, 
-                                    period_12_q5 = 1.95, site = "Aigoual"),
-                      aes(image = "figs/gap.png"), size = 0.5, col = "darkgrey") +
-  ggimage::geom_image(data = tibble(period_0_q5 = 0.93, 
-                                    period_12_q5 = 0.65, site = "Aigoual"),
-                      aes(image = "figs/forest.png"), size = 0.5, col = "darkgrey") +
-  geom_vline(xintercept = 1, col = "darkgrey") +
-  geom_hline(yintercept = 1, col = "darkgrey") +
-  geom_segment(aes(x = period_0_q25, xend = period_0_q75), alpha = .5) +
-  geom_segment(aes(x = period_0_q05, xend = period_0_q95), linewidth = .2, alpha = .5) +
-  geom_segment(aes(y = period_12_q25, yend = period_12_q75), alpha = .5) +
-  geom_segment(aes(y = period_12_q05, yend = period_12_q95), linewidth = .2, alpha = .5) +
-  geom_point(alpha = .5) +
-  theme_bw() +
-  theme(panel.grid = element_blank()) +
-  xlab("Mean temperature ratio [°C]") +
-  ylab("24-h power ratio [°C]") +
-  theme(
-    axis.text = element_text(size = 12),
-    axis.title = element_text(size = 14, face = "bold"),
-    legend.text = element_text(size = 12)
-  ) +
-  scale_color_discrete("")
-cowplot::save_plot("figs/buffer3.png",
-                   plot = g,
-                   base_width = 10,
-                   base_height = 8,
-                   dpi = 300,
-                   bg = "white"
-)
-g
-```
-
 ## Study case 2 - Macroclimate debiasing
 
 Previous reanalyses of microclimate buffers in the Aigoual, Blois and Mormal forests clearly demonstrated the importance of considering the macroclimate when conducting microclimate studies [@hes2025]. Field data from open-air standard stations, such as the ONF station used here, are not always available for our study site of interest, and may be incomplete or only available for a distant site. Conversely, global climate data reanalyses such as ERA5-Land [@muñoz-sabater2021] are available worldwide and cover a long time span, but they include biases, such as overestimation of mean temperature and underestimation of fine temporal variations due to the reanalysis smoothing effect (see @fig-ps).  In this case, Fourier transform decomposition could help us to bridge the gap between local field data from open-air standard stations at a nearby site and ERA5-Land reanalysis data, enabling us to obtain a qualitative, debiased reference macroclimate product for use in microclimate studies (@fig-debias).
@@ -807,10 +759,10 @@ g
 
 ## Discussion
 
-- @10.1016/j.agrformet.2018.12.018
-- @10.24381/cds.151d3ec6
-- @10.1073/pnas.1815828116
-- @10.1073/pnas.1901972116
+- @wild2019
+- @copernicusclimatechangeservice2020
+- @pincebourde2019
+- @kaspari2019
 
 Here, we show that the Discrete Fourier Transform offers a powerful and largely untapped tool for microclimate ecology and biogeography, extending beyond the offset and slope-equilibrium approaches traditionally used to quantify canopy buffering. By decomposing temperature time series into their constituent frequencies, the Fourier Transform captures buffering dynamics across multiple timescales simultaneously, is inherently robust to sensor noise, and yields a novel, physically grounded metric of buffering intensity based on power spectrum variance decomposition. Beyond microclimate buffering itself, we further demonstrate that the same framework can be used to debias macroclimate reference products against local observations. Together, these results position the Fourier Transform as a versatile and complementary, rather than competing, addition to the microclimate ecologist's toolkit.
 
@@ -892,12 +844,67 @@ buffers %>%
   scale_color_manual("", values = c("#a9d9e5", "#c89867"))
 ```
 
-```{r pai_lmm}
-t <- buffers %>%
-  filter(source == "era") |> 
-  mutate(year = year(datetime))
-lme4::lmer(ratio ~ pai + site + position + as.factor(year) + (1|plot), t) |> 
-  sjPlot::tab_model()
+```{r ratios_plot}
+#| label: fig-ratios_plot
+#| message: false
+#| warning: false
+#| fig-width: 10
+#| fig-height: 8
+#| fig-cap: "Mean temperature ratio vs. 24-h power ratio between microclimate (numerator) and macroclimate (denominator) conditions across forest plots for the three studied forests. Microclimate conditions were recorded inside forest plots equipped with HOBO sensors for air (1 m height) temperature. Macroclimate conditions refer to air temperature measured by ONF weather stations located nearby each of the three studied state forests: Aigoual, Blois and Mormal. The point represents the median, the thick line the 50 percent distribution and the thin line the 90 percent distribution."
+g <- read_tsv("data/decomposition.tsv") %>%
+  filter(source != "era") %>%
+  filter(period %in% c(0, 12)) %>%
+  select(-amplitude, -phase, -frequency) %>%
+  pivot_wider(names_from = source, values_from = power) %>%
+  na.omit() %>%
+  mutate(ratio = hobo / onf) %>%
+  select(-hobo, -onf) %>%
+  mutate(period = paste0("period_", period)) %>%
+  group_by(position, site, plot, period) %>%
+  summarise(
+    q05 = quantile(ratio, .05),
+    q25 = quantile(ratio, .25),
+    q5 = quantile(ratio, .5),
+    q75 = quantile(ratio, .75),
+    q95 = quantile(ratio, .95)
+  ) %>%
+  gather(metric, value, -position, -site, -plot, -period) %>%
+  mutate(period_metric = paste0(period, "_", metric)) %>%
+  select(-period, -metric) %>%
+  pivot_wider(names_from = period_metric, values_from = value) |> 
+  filter( position == "air") |> 
+  ggplot(aes(period_0_q5, period_12_q5, col = site)) +
+  ggimage::geom_image(data = tibble(period_0_q5 = 1.3, 
+                                    period_12_q5 = 1.95, site = "Aigoual"),
+                      aes(image = "figs/gap.png"), size = 0.5, col = "darkgrey") +
+  ggimage::geom_image(data = tibble(period_0_q5 = 0.93, 
+                                    period_12_q5 = 0.65, site = "Aigoual"),
+                      aes(image = "figs/forest.png"), size = 0.5, col = "darkgrey") +
+  geom_vline(xintercept = 1, col = "darkgrey") +
+  geom_hline(yintercept = 1, col = "darkgrey") +
+  geom_segment(aes(x = period_0_q25, xend = period_0_q75), alpha = .5) +
+  geom_segment(aes(x = period_0_q05, xend = period_0_q95), linewidth = .2, alpha = .5) +
+  geom_segment(aes(y = period_12_q25, yend = period_12_q75), alpha = .5) +
+  geom_segment(aes(y = period_12_q05, yend = period_12_q95), linewidth = .2, alpha = .5) +
+  geom_point(alpha = .5) +
+  theme_bw() +
+  theme(panel.grid = element_blank()) +
+  xlab("Mean temperature ratio [°C]") +
+  ylab("24-h power ratio [°C]") +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14, face = "bold"),
+    legend.text = element_text(size = 12)
+  ) +
+  scale_color_discrete("")
+cowplot::save_plot("figs/buffer3.png",
+                   plot = g,
+                   base_width = 10,
+                   base_height = 8,
+                   dpi = 300,
+                   bg = "white"
+)
+g
 ```
 
 ```{r pai}
@@ -928,3 +935,13 @@ ggplot(t, aes(pai, ratio, col = site, alpha = position)) +
   scale_alpha_manual("", values = c(1, 0.3)) +
   ggtitle("Marginal R2 / Conditional R2	0.794 / 0.860")
 ```
+
+```{r pai_lmm}
+t <- buffers %>%
+  filter(source == "era") |> 
+  mutate(year = year(datetime))
+lme4::lmer(ratio ~ pai + site + position + as.factor(year) + (1|plot), t) |> 
+  sjPlot::tab_model(title = "Summary table of the linear model with fixed effects of plant area index, forest (Aigoula, Blois, Mormal), sensor position (air and soil), and year (2020, 2021, 2022, and 2023) and random effect of plot. The model was run only for ONF weather station as the macroclimate reference.")
+```
+
+## [Supplementary note](https://sylvainschmitt.github.io/fourier/supplementary_note.html)

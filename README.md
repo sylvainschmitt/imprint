@@ -1,6 +1,6 @@
 # Fourier
 Sylvain Schmitt
-Jul 17, 2026
+Sep 8, 2026
 
 <div>
 
@@ -15,17 +15,21 @@ from the Mormal, Blois and Aigoual forests.
 
 ## Usage
 
-**fourier** analyses rely on the quarto documents `index.qmd` that can
-be run with R and associated environment defined with [renv](#0).
+**fourier** analyses rely on the quarto documents `index.qmd`,
+`supplementary_note.qmd` and `cover_letter.qmd` that can be run with R
+and associated environment defined with [renv](#0).
 
 ## Project
 
 **fourier** includes:
 
-- Analyse of the data with associated documentation and figures:
-  - Reproductive analyses in `index.qmd`
-  - Resulting page in `index.html`
+- Manuscript and analyse of the data with associated documentation and
+  figures:
+  - Manuscript: `index.qmd` and associated html
+  - Supplementary note: `supplementary_note.qmd` and associated html
+    Cover letter: `cover_letter.qmd` and associated html
 - All data in `data/`
+- All figures in `figs/`
 - R environment definition with
   [renv](https://rstudio.github.io/renv/articles/renv.html) in `renv/`
   and `renv/lock`

@@ -1,0 +1,34 @@
+---
+author:
+- Sylvain Schmitt, Erwan Hingant, Jonathan Lenoir
+title: Cover letter
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    cache: true
+  docx: default
+bibliography: references.bib
+csl: mee.csl
+---
+
+Dear Editor,
+
+We would like to submit an original research article entitled “Using Fourier's transform to model forest microclimates by playing the partition of temperature harmonics” for consideration to publish in *Methods in Ecology and Evolution*. This is a first submission.
+
+Existing metrics for quantifying how forest canopies buffer microclimatic temperature fluctuations, namely the offset and the slope-equilibrium approaches, capture buffering at a single, pre-defined timescale and cannot disentangle daily, seasonal and interannual signals within the same temperature record. We introduce the Discrete Fourier Transform (DFT) as a tool for microclimate ecology, decomposing paired microclimate–macroclimate temperature time series into their constituent harmonics (amplitude and phase per frequency) so that buffering can be quantified independently across timescales.
+
+We illustrate the approach with two case studies using air and soil temperature records from three French forests (Aigoual, Blois, Mormal), paired with weather-station and ERA5-Land reanalysis reference data. In the first case study, spectral decomposition isolated the dominant 24-hour cycle and showed that forest canopies buffered daily air-temperature fluctuations by 75.9–90.3% across sites, with soil buffering mean temperature more strongly than air. In the second, the same framework was used to debias ERA5-Land reanalysis data against a local weather station by comparing power spectra across frequencies, correcting both the overestimation of mean temperature and the underestimation of short-term variability.
+
+By resolving buffering across multiple timescales within a single, noise-robust framework, and by enabling principled debiasing of macroclimate reference products, the Fourier Transform offers a versatile addition to the microclimate ecologist's toolkit, complementing rather than replacing existing offset and slope-equilibrium approaches. We accompany the method with an open-source R package (*microclimr*) to support its wider adoption.
+
+We believe this manuscript would be a valuable contribution to *Methods in Ecology and Evolution* and would attract a wide readership, as it introduces a new, physically grounded method to a fast-growing field, microclimate ecology and biogeography, while remaining fully compatible with the tools currently used in the discipline. Our approach is also timely, as it responds to the community's need for methods able to jointly handle multiple timescales and to correct known biases in widely used macroclimate reanalysis products such as ERA5-Land.
+
+We have no conflicts of interest to disclose. 
+Thank you for your consideration.
+
+Sincerely,
+
+*Sylvain Schmitt Erwan Hingant, & Jonathan Lenoir*
+
